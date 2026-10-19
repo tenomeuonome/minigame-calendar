@@ -64,17 +64,31 @@ async function main() {
   const stock = readJson(STOCK_FILE, []);
   const today = todayStr();
 
+  // 公開日つきのストックは、その日が来たら登録する(実行が抜けた日があっても後から追いつく)
+  const due = stock.filter(s => s.date && s.date <= today && !games.some(g => g.date === s.date));
+  for (const s of due) {
+    games.push({ date: s.date, title: s.title, url: s.url });
+    log(`registered: ${s.date} = 「${s.title}」(公開日指定)`);
+  }
+  let rest = stock.filter(s => !(s.date && s.date <= today));
+
+  // 今日の分がまだ無ければ、公開日なしのストックの先頭を今日に回す
   let game = games.find(g => g.date === today);
-  if (game) {
-    log(`skip: ${today} はすでに登録済み(${game.title})`);
-  } else if (!stock.length) {
-    log('skip: ストックが空。新しいゲームを追加してください');
-  } else {
-    const next = stock.shift();
-    game = { date: today, title: next.title, url: next.url };
-    games.push(game);
-    writeJson(STOCK_FILE, stock);
-    log(`registered: ${today} = 「${next.title}」(残りストック ${stock.length}件)`);
+  if (!game) {
+    const i = rest.findIndex(s => !s.date);
+    if (i < 0) {
+      log('skip: 今日の分のストックが無い。新しいゲームを追加してください');
+    } else {
+      const [next] = rest.splice(i, 1);
+      game = { date: today, title: next.title, url: next.url };
+      games.push(game);
+      log(`registered: ${today} = 「${next.title}」`);
+    }
+  }
+  if (rest.length !== stock.length) {
+    games.sort((a, b) => a.date.localeCompare(b.date));
+    writeJson(STOCK_FILE, rest);
+    log(`残りストック ${rest.length}件`);
   }
 
   if (game && !game.announced && await announce(game)) game.announced = true;
