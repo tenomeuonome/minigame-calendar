@@ -14,6 +14,7 @@ const DIR = __dirname;
 const GAMES_FILE = path.join(DIR, 'games.json');
 const STOCK_FILE = path.join(DIR, 'stock.json');
 const LOG_FILE = path.join(DIR, 'promote.log');
+const CALENDAR_URL = 'https://tenomeuonome.github.io/minigame-calendar/';
 
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}\n`;
@@ -41,7 +42,7 @@ function todayStr() {
 function announceText(game) {
   const [, m, d] = game.date.split('-').map(Number);
   const title = game.title.replace(/[（(][^（）()]*[）)]\s*$/, '').trim();
-  return `${m}/${d} 今日のミニゲームは・・\n「${title}」\n${game.url || game.file}\n#AIゲーム`;
+  return `${m}/${d} 今日のミニゲームは・・\n「${title}」\n${game.url || CALENDAR_URL + game.file}\n\nミニゲームカレンダー\n${CALENDAR_URL}\n#AIゲーム`;
 }
 
 async function announce(game) {
