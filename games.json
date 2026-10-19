@@ -1,6 +1,7 @@
 [
-  { "date": "2026-10-16", "title": "うらめし肝試し（幽霊が肝試し客を驚かす）", "url": "https://claude.ai/artifact/WrnQQwWT4C37YsvwGbQrPv", "announced": true },
-  { "date": "2026-10-17", "title": "武装ジャンケン（CPU戦・2人対戦）", "url": "https://claude.ai/artifact/9N6PtLk4hND6tkruk31qrj", "announced": true },
-  { "date": "2026-10-18", "title": "視力検査の結果を良くしてあげよう", "url": "https://claude.ai/artifact/NX9EU5m1hYxPCMnZwSA1gc", "announced": true },
-  { "date": "2026-10-19", "title": "ぷ〜ん（蚊の横スクロール）", "url": "https://claude.ai/artifact/C5826S2j2Et6uYUXLFMeQt", "announced": true }
+  {"date":"2026-10-16","title":"うらめし肝試し（幽霊が肝試し客を驚かす）","url":"https://claude.ai/artifact/WrnQQwWT4C37YsvwGbQrPv","announced":true},
+  {"date":"2026-10-17","title":"武装ジャンケン（CPU戦・2人対戦）","url":"https://claude.ai/artifact/9N6PtLk4hND6tkruk31qrj","announced":true},
+  {"date":"2026-10-18","title":"視力検査の結果を良くしてあげよう","url":"https://claude.ai/artifact/NX9EU5m1hYxPCMnZwSA1gc","announced":true},
+  {"date":"2026-10-19","title":"ぷ〜ん（蚊の横スクロール）","url":"https://claude.ai/artifact/C5826S2j2Et6uYUXLFMeQt","announced":true},
+  {"date":"2026-10-20","title":"半額シール争奪戦（ステージ制）","url":"https://claude.ai/artifact/E3X2NC5qpv6kBaLFSHqJA6"}
 ]
