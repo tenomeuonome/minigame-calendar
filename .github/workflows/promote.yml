@@ -25,6 +25,8 @@ jobs:
 
       - name: ストックから今日の分を登録
         run: node promote.js
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: 変更があればコミット&push
         run: |
