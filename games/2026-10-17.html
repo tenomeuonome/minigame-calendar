@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>心霊スポットの幽霊</title>
+<style>
+  body {
+    margin: 0;
+    background: #0a0a12;
+    color: #eee;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  h1 { font-size: 20px; margin: 8px 0; }
+  #wrap { position: relative; }
+  canvas {
+    background: #111018;
+    border: 2px solid #333;
+    border-radius: 8px;
+    display: block;
+  }
+  #hud {
+    display: flex;
+    gap: 24px;
+    margin: 10px 0;
+    font-size: 14px;
+    width: 800px;
+  }
+  .meter-box { flex: 1; }
+  .meter-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .meter-bar { height: 16px; background: #222; border-radius: 8px; overflow: hidden; border: 1px solid #444; }
+  .meter-fill { height: 100%; transition: width 0.15s linear; }
+  #fear .meter-fill { background: linear-gradient(90deg, #ff6b6b, #ff3b3b); }
+  #exorcism .meter-fill { background: linear-gradient(90deg, #6bc5ff, #3b9bff); }
+  #timer { font-size: 14px; color: #aaa; }
+  #msg {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: none;
+    align-items: center; justify-content: center;
+    flex-direction: column;
+    background: rgba(0,0,0,0.75);
+    border-radius: 8px;
+    text-align: center;
+  }
+  #msg h2 { font-size: 28px; margin-bottom: 8px; }
+  #msg p { color: #ccc; margin-bottom: 16px; }
+  #msg button {
+    padding: 8px 20px;
+    font-size: 15px;
+    border-radius: 6px;
+    border: none;
+    background: #5a4ab0;
+    color: #fff;
+    cursor: pointer;
+  }
+  #help { max-width: 800px; font-size: 13px; color: #999; margin-top: 10px; line-height: 1.7; }
+</style>
+</head>
+<body>
+  <h1>👻 心霊スポットの幽霊</h1>
+  <div id="hud">
+    <div class="meter-box" id="fear">
+      <div class="meter-label"><span>恐怖(これが先に満タンで勝ち)</span><span id="fearPct">0%</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="fearFill" style="width:0%"></div></div>
+    </div>
+    <div class="meter-box" id="exorcism">
+      <div class="meter-label"><span>除霊(これが先に満タンで負け)</span><span id="exoPct">0%</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="exoFill" style="width:0%"></div></div>
+    </div>
+    <div id="timer">残り 90s</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="800" height="500"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    矢印キー / WASD で幽霊を移動。壁は通り抜けられる。<br>
+    <b>スペース</b>で「驚かす」(訪問者のライトに自分が映っていない時に当てると恐怖ゲージが上がる)。<br>
+    ライトの円に映っている間は正体がバレて除霊ゲージが進むので、光を避けながら距離を詰めるのがコツ。
+  </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// 壁(訪問者は通れない。幽霊は通り抜けられる)
+const walls = [
+  {x:150, y:0,   w:20, h:200},
+  {x:150, y:300, w:20, h:200},
+  {x:400, y:100, w:20, h:300},
+  {x:600, y:0,   w:20, h:220},
+  {x:600, y:320, w:20, h:180},
+];
+
+// 訪問者の巡回ルート(ウェイポイント)
+const patrol = [
+  {x:60, y:60}, {x:60, y:440}, {x:280, y:440}, {x:280, y:60},
+  {x:500, y:60}, {x:500, y:440}, {x:740, y:440}, {x:740, y:60},
+];
+
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    ghost: { x: 400, y: 250, speed: 3.2 },
+    visitor: { x: patrol[0].x, y: patrol[0].y, wp: 0, speed: 1.6, angle: 0 },
+    fear: 0,
+    exorcism: 0,
+    timeLeft: 90,
+    scareCooldown: 0,
+    scareFlash: 0,
+    keys: {},
+    running: true,
+  };
+}
+
+document.addEventListener('keydown', e => {
+  state.keys[e.key] = true;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    tryScare();
+  }
+});
+document.addEventListener('keyup', e => { state.keys[e.key] = false; });
+
+function rectBlocksCircle(rect, x, y, r) {
+  const cx = Math.max(rect.x, Math.min(x, rect.x + rect.w));
+  const cy = Math.max(rect.y, Math.min(y, rect.y + rect.h));
+  const dx = x - cx, dy = y - cy;
+  return (dx*dx + dy*dy) < r*r;
+}
+
+function moveGhost() {
+  const g = state.ghost;
+  let dx = 0, dy = 0;
+  if (state.keys['ArrowLeft'] || state.keys['a']) dx -= 1;
+  if (state.keys['ArrowRight'] || state.keys['d']) dx += 1;
+  if (state.keys['ArrowUp'] || state.keys['w']) dy -= 1;
+  if (state.keys['ArrowDown'] || state.keys['s']) dy += 1;
+  const len = Math.hypot(dx, dy) || 1;
+  g.x = Math.max(12, Math.min(W - 12, g.x + (dx/len) * g.speed));
+  g.y = Math.max(12, Math.min(H - 12, g.y + (dy/len) * g.speed));
+}
+
+function moveVisitor() {
+  const v = state.visitor;
+  const target = patrol[v.wp];
+  const dx = target.x - v.x, dy = target.y - v.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 4) {
+    v.wp = (v.wp + 1) % patrol.length;
+  } else {
+    const nx = v.x + (dx/dist) * v.speed;
+    const ny = v.y + (dy/dist) * v.speed;
+    // 壁には当たらない前提のルート(巡回点同士は壁を避けて直線で結んである想定)
+    v.x = nx; v.y = ny;
+    v.angle = Math.atan2(dy, dx);
+  }
+}
+
+// 幽霊がライトの円錐(視界)に入っているか
+function ghostInLight() {
+  const v = state.visitor, g = state.ghost;
+  const dx = g.x - v.x, dy = g.y - v.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > 170) return false;
+  const angleToGhost = Math.atan2(dy, dx);
+  let diff = Math.abs(angleToGhost - v.angle);
+  if (diff > Math.PI) diff = 2*Math.PI - diff;
+  if (diff > (Math.PI / 5)) return false; // 視野角 約72度
+  // 壁に遮られていれば見えない
+  for (const w of walls) {
+    if (segmentHitsRect(v.x, v.y, g.x, g.y, w)) return false;
+  }
+  return true;
+}
+
+function segmentHitsRect(x1,y1,x2,y2, r) {
+  // 粗い判定: 線分を細かく分割して矩形内に入るか見る(簡易版)
+  const steps = 20;
+  for (let i=0;i<=steps;i++) {
+    const t = i/steps;
+    const x = x1 + (x2-x1)*t, y = y1 + (y2-y1)*t;
+    if (x >= r.x && x <= r.x+r.w && y >= r.y && y <= r.y+r.h) return true;
+  }
+  return false;
+}
+
+function tryScare() {
+  if (!state.running || state.scareCooldown > 0) return;
+  state.scareCooldown = 60; // フレーム数(約1秒)のクールダウン
+  const v = state.visitor, g = state.ghost;
+  const dist = Math.hypot(g.x-v.x, g.y-v.y);
+  if (dist > 120) return; // 近くないと驚かせられない
+  state.scareFlash = 15;
+  if (ghostInLight()) {
+    // 見られている状態で驚かすのは逆効果(正体がバレる)
+    state.exorcism = Math.min(100, state.exorcism + 18);
+  } else {
+    state.fear = Math.min(100, state.fear + 22);
+  }
+}
+
+function update() {
+  if (!state.running) return;
+  moveGhost();
+  moveVisitor();
+  if (state.scareCooldown > 0) state.scareCooldown--;
+  if (state.scareFlash > 0) state.scareFlash--;
+
+  // 見られている間は継続的に除霊ゲージが進む
+  if (ghostInLight()) {
+    state.exorcism = Math.min(100, state.exorcism + 0.35);
+  }
+
+  state.timeLeft -= 1/60;
+  document.getElementById('fearFill').style.width = state.fear + '%';
+  document.getElementById('exoFill').style.width = state.exorcism + '%';
+  document.getElementById('fearPct').textContent = Math.floor(state.fear) + '%';
+  document.getElementById('exoPct').textContent = Math.floor(state.exorcism) + '%';
+  document.getElementById('timer').textContent = '残り ' + Math.max(0, Math.ceil(state.timeLeft)) + 's';
+
+  if (state.fear >= 100) return endGame(true, '訪問者は悲鳴をあげて逃げ出した。', '恐怖で退散させた、あなたの勝ち！');
+  if (state.exorcism >= 100) return endGame(false, '正体を見破られ、光に包まれて消えていく……', '除霊された、あなたの負け。');
+  if (state.timeLeft <= 0) return endGame(null, '訪問者は何も気づかず帰っていった。', '時間切れ。中途半端な夜だった……もう一度？');
+}
+
+function endGame(win, text, title) {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = win === true ? '🎉 勝利' : (win === false ? '💀 除霊' : '⏱ 時間切れ');
+  document.getElementById('msgText').textContent = title + ' ' + text;
+  document.getElementById('msg').style.display = 'flex';
+}
+
+function draw() {
+  ctx.clearRect(0,0,W,H);
+  // 壁
+  ctx.fillStyle = '#2a2a38';
+  for (const w of walls) ctx.fillRect(w.x, w.y, w.w, w.h);
+
+  // ライト(視界)
+  const v = state.visitor;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(v.x, v.y);
+  ctx.arc(v.x, v.y, 170, v.angle - Math.PI/5, v.angle + Math.PI/5);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255, 240, 150, 0.12)';
+  ctx.fill();
+  ctx.restore();
+
+  // 訪問者
+  ctx.beginPath();
+  ctx.arc(v.x, v.y, 10, 0, Math.PI*2);
+  ctx.fillStyle = '#ffd27a';
+  ctx.fill();
+
+  // 幽霊(見られてる時は輪郭を赤くして分かりやすく)
+  const g = state.ghost;
+  const seen = ghostInLight();
+  ctx.beginPath();
+  ctx.arc(g.x, g.y, 14, 0, Math.PI*2);
+  ctx.fillStyle = seen ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.4)';
+  ctx.fill();
+  ctx.strokeStyle = seen ? '#3b9bff' : '#888';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 驚かすフラッシュ
+  if (state.scareFlash > 0) {
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, 120 * (state.scareFlash/15), 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,60,60,0.5)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+resetGame();
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+name: Promote daily game
+
+# 毎日 00:10(日本時間) に、stock.jsonの先頭を今日の日付でgames.jsonに登録する。
+# ローカルのタスクスケジューラ(minigame-promote.vbs)と同じ役目だが、
+# GitHub Actionsで動くので、PCの電源に関係なく毎日実行される。
+# 手動で今すぐ動かしたいときは Actions タブから "Run workflow" を押せばいい(workflow_dispatch)。
+
+on:
+  schedule:
+    - cron: '10 15 * * *'  # UTC 15:10 = JST 00:10
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: ストックから今日の分を登録
+        run: node promote.js
+
+      - name: 変更があればコミット&push
+        run: |
+          git config user.name "minigame-calendar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add games.json stock.json
+          if git diff --cached --quiet; then
+            echo "変更なし(今日の分はすでに登録済み、またはストック切れ)"
+          else
+            git commit -m "chore: 今日の分を登録"
+            git push
+          fi

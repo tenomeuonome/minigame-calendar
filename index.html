@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ミニゲームカレンダー</title>
+<style>
+  body {
+    margin: 0;
+    background: #141420;
+    color: #eee;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 { text-align: center; font-size: 22px; margin-bottom: 4px; }
+  .sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 24px; }
+  #cal {
+    max-width: 480px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+  .dow {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    padding-bottom: 4px;
+  }
+  .day {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: #1e1e2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #555;
+    position: relative;
+  }
+  .day.empty { background: transparent; }
+  .day.has-game {
+    background: linear-gradient(145deg, #5a4ab0, #3a2f80);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .day.has-game:hover { filter: brightness(1.2); }
+  .day .num { font-weight: bold; font-size: 14px; }
+  .day .dot { font-size: 16px; margin-top: 2px; }
+  .legend {
+    max-width: 480px;
+    margin: 20px auto 0;
+    font-size: 13px;
+    color: #aaa;
+  }
+  .legend ul { list-style: none; padding: 0; margin: 8px 0 0; }
+  .legend li { margin: 4px 0; }
+  .legend a { color: #b9a8ff; text-decoration: none; }
+  .legend a:hover { text-decoration: underline; }
+  #monthNav {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  #monthNav button {
+    background: #2a2a3c;
+    color: #eee;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  #monthLabel { font-size: 15px; font-weight: bold; min-width: 110px; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>🕹️ ミニゲームカレンダー</h1>
+  <p class="sub">毎日ひとつ、Claudeと作ったミニゲームを置いていく場所</p>
+
+  <div id="monthNav">
+    <button onclick="shiftMonth(-1)">← 前の月</button>
+    <div id="monthLabel"></div>
+    <button onclick="shiftMonth(1)">次の月 →</button>
+  </div>
+
+  <div id="cal"></div>
+  <div class="legend">
+    <strong>一覧:</strong>
+    <ul id="list"></ul>
+  </div>
+
+<script>
+let games = [];
+let viewYear, viewMonth; // viewMonth: 0-11
+
+async function load() {
+  const res = await fetch('games.json');
+  games = await res.json();
+  const today = new Date();
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+  render();
+}
+
+function gameFor(dateStr) {
+  return games.find(g => g.date === dateStr);
+}
+
+function shiftMonth(diff) {
+  viewMonth += diff;
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  render();
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function render() {
+  document.getElementById('monthLabel').textContent = `${viewYear}年 ${viewMonth + 1}月`;
+
+  const cal = document.getElementById('cal');
+  cal.innerHTML = '';
+  const dows = ['日','月','火','水','木','金','土'];
+  dows.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'dow';
+    el.textContent = d;
+    cal.appendChild(el);
+  });
+
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  for (let i = 0; i < firstDow; i++) {
+    const el = document.createElement('div');
+    el.className = 'day empty';
+    cal.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(d)}`;
+    const game = gameFor(dateStr);
+    const el = document.createElement('div');
+    el.className = 'day' + (game ? ' has-game' : '');
+    el.innerHTML = `<div class="num">${d}</div>` + (game ? '<div class="dot">👻</div>' : '');
+    if (game) {
+      el.title = game.title;
+      el.onclick = () => window.open(game.url || game.file, '_blank');
+    }
+    cal.appendChild(el);
+  }
+
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  games.slice().sort((a,b) => b.date.localeCompare(a.date)).forEach(g => {
+    const li = document.createElement('li');
+    li.innerHTML = `${g.date}: <a href="${g.url || g.file}" target="_blank">${g.title}</a>`;
+    list.appendChild(li);
+  });
+}
+
+load();
+</script>
+</body>
+</html>
