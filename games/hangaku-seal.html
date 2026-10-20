@@ -1,0 +1,478 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>半額シール争奪戦</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=BIZ+UDGothic&display=swap">
+<style>
+/* 閉店前のスーパー惣菜売り場、蛍光灯の明るさで一つの見た目に固定。上にHUD、中央に通路（店員と奥様）とショーケース4×2、下にカゴ。手書きPOPの黄と値引きの赤 */
+:root{
+  --floor:#eef1ec; --tile:#e2e7e0; --case:#f9fbfc; --steel:#b9c3c9; --ink:#22262a; --muted:#6b7378;
+  --pop:#ffe14d; --red:#e23b2e; --orange:#f08a24; --green:#2f9e5b;
+  --f-pop:"Yusei Magic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-receipt:"BIZ UDGothic","Osaka-Mono","MS Gothic",monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:repeating-conic-gradient(var(--floor) 0 25%,var(--tile) 0 50%) 0 0/48px 48px;background-color:var(--floor);color:var(--ink);
+  font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;background:var(--ink);color:#fff;border-radius:12px;padding:8px 12px}
+.clock{font-family:var(--f-receipt);font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.clock.late{color:var(--pop)}
+.phase{justify-self:center;font-family:var(--f-pop);font-size:15px;background:var(--pop);color:var(--ink);padding:3px 12px;border-radius:999px;transform:rotate(-2deg);text-align:center}
+.save{text-align:right;line-height:1.1}
+.save small{display:block;font-size:10px;color:#c9cfd3;letter-spacing:.08em}
+.save b{font-family:var(--f-receipt);font-size:20px;color:var(--pop);font-variant-numeric:tabular-nums;font-weight:400}
+.floorArea{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;position:relative}
+.lane{position:relative;height:118px;flex:none}
+.char{z-index:2;position:absolute;bottom:0;width:58px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.char svg{width:58px;height:74px;display:block}
+.char .nm{font-size:10px;line-height:1.2;text-align:center;font-weight:700;background:#fff;border-radius:6px;padding:1px 5px;margin-top:-4px;white-space:nowrap;box-shadow:0 1px 0 rgba(0,0,0,.15)}
+.bub{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);background:#fff;border:2px solid var(--ink);border-radius:12px;padding:2px 7px;
+  font-size:12px;font-weight:700;white-space:nowrap;line-height:1.3}
+.bub:empty{display:none}
+.bub::after{content:"";position:absolute;left:50%;bottom:-6px;width:8px;height:8px;background:#fff;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translateX(-50%) rotate(45deg)}
+.clerk .bub{background:var(--pop)} .clerk .bub::after{background:var(--pop)}
+.case{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:6px;
+  background:linear-gradient(var(--steel),#d6dde1);border:3px solid #8f9aa1;border-radius:12px;padding:6px;position:relative}
+.case::before{content:"お惣菜";position:absolute;top:-13px;left:12px;font-family:var(--f-pop);font-size:14px;background:var(--red);color:#fff;padding:1px 10px;border-radius:6px;z-index:1}
+.slot{appearance:none;border:0;border-radius:8px;background:var(--case);position:relative;overflow:hidden;cursor:pointer;padding:6px 4px 4px;min-width:0;min-height:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:2px;font-family:var(--f-body);color:var(--ink);touch-action:manipulation;
+  box-shadow:inset 0 -6px 0 rgba(0,0,0,.05)}
+.slot:focus-visible{outline:3px solid var(--orange);outline-offset:1px}
+.slot.empty{background:#e9edef;cursor:default}
+.slot.empty .tag,.slot.empty .food{visibility:hidden}
+.food{flex:1;display:grid;place-items:center;font-size:clamp(26px,8vw,40px);line-height:1;position:relative;min-height:0;padding-left:14px}
+.food .em{position:relative}
+.cnt{position:absolute;right:-8px;bottom:4px;font-size:10px;font-weight:700;background:var(--ink);color:#fff;border-radius:6px;padding:0 4px}
+.tag{width:100%;background:var(--pop);border-radius:4px;padding:2px 2px 1px;text-align:center;line-height:1.15;min-width:0}
+.tag .n{display:block;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag .p{font-family:var(--f-receipt);font-size:12px;font-variant-numeric:tabular-nums}
+.tag .p s{color:var(--muted);font-size:10px;margin-right:2px}
+.tag .p b{color:var(--red);font-weight:400}
+.sticker{position:absolute;top:4px;left:4px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;text-align:center;
+  font-family:var(--f-pop);font-size:12px;line-height:1.05;color:#fff;transform:rotate(-12deg);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.sticker.d20{background:var(--green)} .sticker.d30{background:var(--orange)} .sticker.d50{background:var(--red);font-size:15px}
+.sticker.stamp{animation:stamp .35s ease-out}
+@keyframes stamp{0%{transform:rotate(-12deg) scale(2);opacity:0}60%{transform:rotate(-12deg) scale(.9);opacity:1}100%{transform:rotate(-12deg) scale(1)}}
+.target{position:absolute;inset:0;border:3px dashed var(--orange);border-radius:8px;pointer-events:none;animation:blink .4s infinite alternate}
+@keyframes blink{to{opacity:.25}}
+.reach{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+.reach .hand{font-size:28px;line-height:1;transform-origin:top center}
+.reach .who{font-size:10px;font-weight:700;color:#fff;border-radius:6px;padding:1px 5px}
+.tug{position:absolute;inset:0;background:rgba(34,38,42,.78);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;pointer-events:none}
+.tug b{font-family:var(--f-pop);font-size:18px;color:var(--pop);font-weight:400}
+.tug .tb{width:80%;height:10px;border-radius:5px;background:var(--red);overflow:hidden}
+.tug .tb i{display:block;height:100%;background:var(--pop);width:50%}
+.fx{position:absolute;pointer-events:none;font-family:var(--f-pop);font-size:16px;white-space:nowrap;transform:translate(-50%,-50%);animation:fx 1s ease-out forwards;
+  text-shadow:2px 2px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff;z-index:4}
+@keyframes fx{0%{opacity:0;transform:translate(-50%,-30%) scale(.8)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-140%)}}
+@media (prefers-reduced-motion:reduce){.fx{animation-duration:1.4s}.target{animation:none}.sticker.stamp{animation:none}}
+.cart{display:flex;align-items:center;gap:8px}
+.cart .lbl{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap}
+.cart .items{flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;background:#fff;border:2px solid #c9d0d4;border-radius:10px;padding:4px}
+.cart .it{aspect-ratio:1;max-width:100%;border-radius:6px;background:var(--floor);display:grid;place-items:center;font-size:20px;position:relative}
+.cart .it.full::after{content:"定価";position:absolute;bottom:-2px;font-size:8px;font-weight:700;color:#fff;background:var(--muted);border-radius:3px;padding:0 2px}
+.cart .it.d::after{content:attr(data-d);position:absolute;bottom:-2px;font-size:8px;font-weight:700;color:#fff;background:var(--red);border-radius:3px;padding:0 2px}
+.hint{margin:0;font-size:11px;color:var(--muted);text-align:center}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(238,241,236,.94);z-index:10;overflow-y:auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.card{max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--f-pop);font-weight:400;font-size:40px;margin:0;color:var(--red);line-height:1.1;text-wrap:balance;transform:rotate(-2deg)}
+.card p{margin:0;font-size:14px;line-height:1.7}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:3px}
+.card li::marker{color:var(--red)}
+.card em{font-style:normal;font-weight:700;color:var(--red)}
+.legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:4px}
+.legend i{width:14px;height:14px;border-radius:50%;display:inline-block}
+.receipt{background:#fff;font-family:var(--f-receipt);font-size:12px;padding:14px 14px 18px;box-shadow:0 2px 8px rgba(0,0,0,.12);line-height:1.6;
+  -webkit-mask:linear-gradient(#000 0 0) top/100% calc(100% - 8px) no-repeat,radial-gradient(circle at 6px 0,#0000 5px,#000 5.5px) bottom/12px 8px repeat-x;
+  mask:linear-gradient(#000 0 0) top/100% calc(100% - 8px) no-repeat,radial-gradient(circle at 6px 0,#0000 5px,#000 5.5px) bottom/12px 8px repeat-x}
+.receipt h2{font-family:var(--f-receipt);font-weight:400;font-size:14px;text-align:center;margin:0 0 6px}
+.receipt .row{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.receipt .disc{color:var(--red);padding-left:1em}
+.receipt hr{border:0;border-top:1px dashed var(--muted);margin:6px 0}
+.receipt .big{font-size:15px}
+.receipt .title{text-align:center;margin-top:8px;font-family:var(--f-pop);font-size:16px;color:var(--red)}
+.go{font-family:var(--f-pop);font-size:20px;background:var(--red);color:#fff;border:0;border-radius:999px;padding:10px 28px;cursor:pointer;align-self:flex-start;box-shadow:0 4px 0 #a5281f}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #a5281f}
+.go:focus-visible{outline:3px solid var(--pop);outline-offset:3px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.go.sub{background:#fff;color:var(--ink);box-shadow:0 4px 0 #c9d0d4;font-size:16px}
+.day{display:block;font-size:10px;color:#c9cfd3;letter-spacing:.08em;font-weight:700}
+.save b.ok{color:#7be3a4}
+.receipt .stamp{margin:10px auto 0;width:max-content;font-family:var(--f-pop);font-size:20px;border:3px solid currentColor;border-radius:8px;padding:2px 14px;transform:rotate(-6deg)}
+.receipt .next{margin-top:10px;font-size:11px;line-height:1.6;color:var(--muted);text-align:center}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div><span class="day" id="day">1日目</span><span class="clock" id="clock">20:00</span></div>
+    <div class="phase" id="phase">まだ定価</div>
+    <div class="save"><small id="goal">目標 300円お得に</small><b id="saved">0円</b></div>
+  </header>
+  <div class="floorArea" id="floorArea">
+    <div class="lane" id="lane"></div>
+    <div class="case" id="case"></div>
+  </div>
+  <div class="cart"><span class="lbl">カゴ</span><div class="items" id="cart"></div></div>
+  <p class="hint">シールが貼られた瞬間にタップ。奥様と取り合いになったら連打！</p>
+
+  <div class="overlay" id="startOv">
+    <div class="card">
+      <h1>半額シール争奪戦</h1>
+      <p>閉店前30分のお惣菜コーナー。店員さんが値引きシールを貼りはじめた。常連の奥様たちより先に、お得なお惣菜をカゴへ。</p>
+      <ul>
+        <li>店員さんが「カチッ…」と構えたら、そのお惣菜にシールが貼られる合図。</li>
+        <li>シールが貼られた瞬間にタップ。<em>貼られる前に取ると定価</em>になる。</li>
+        <li>時間がたつほど値引きが大きくなる。待てば半額、でも奥様に取られるかも。</li>
+        <li>奥様が手を伸ばしている最中にタップすると引っ張り合い。<em>連打</em>で勝て。</li>
+        <li>1日は約30秒。<em>目標の金額以上お得に買えたら次の日へ</em>。日がたつほど常連さんが増える。</li>
+      </ul>
+      <div class="legend"><span><i style="background:var(--green)"></i>2割引 〜20:10</span><span><i style="background:var(--orange)"></i>3割引 〜20:20</span><span><i style="background:var(--red)"></i>半額 20:20〜</span></div>
+      <button class="go" id="startBtn">売り場へ行く</button>
+    </div>
+  </div>
+  <div class="overlay" id="overOv" hidden>
+    <div class="card">
+      <div class="receipt" id="receipt"></div>
+      <div class="btns"><button class="go" id="retryBtn">次の日へ</button><button class="go sub" id="resetBtn" hidden>1日目から</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const yen = n => n.toLocaleString('ja-JP') + '円';
+
+const MENU = [
+  {n:'鶏の唐揚げ', p:398, e:'🍗'}, {n:'にぎり寿司', p:980, e:'🍣'}, {n:'天ぷら盛合せ', p:598, e:'🍤'}, {n:'焼き餃子', p:358, e:'🥟'},
+  {n:'幕の内弁当', p:548, e:'🍱'}, {n:'焼き鳥', p:498, e:'🍢'}, {n:'コロッケ', p:298, e:'🥔'}, {n:'お刺身盛合せ', p:1280, e:'🐟'},
+  {n:'ちらし寿司', p:698, e:'🍙'}, {n:'ロースかつ', p:458, e:'🥩'}, {n:'エビチリ', p:428, e:'🦐'}, {n:'ポテトサラダ', p:258, e:'🥗'},
+];
+const AUNTS = [
+  {name:'田中さん', color:'#e0607e', hair:'#5a4636', thr:0.3, react:[0.5,0.85], pull:36, join:0},
+  {name:'鈴木さん', color:'#3f9e6e', hair:'#8a7a6a', thr:0.2, react:[0.6,1.0], pull:32, join:0},
+  {name:'佐藤さん', color:'#5a7ee0', hair:'#2e2e2e', thr:0.5, react:[0.3,0.55], pull:44, join:30},
+  {name:'高橋さん', color:'#d99a2a', hair:'#4a2f2a', thr:0.3, react:[0.38,0.7], pull:46, join:58},
+];
+const DISC_LABEL = {0.2:'2割引', 0.3:'3割引', 0.5:'半額'};
+const discPrice = (p, d) => d === 0.5 ? Math.floor(p / 2) : Math.round(p * (1 - d));
+const GAME_LEN = 30, CART_MAX = 6;
+const WEEK = ['月','火','水','木','金','土','日'];
+const ORDER = [1, 0, 2, 3]; // 鈴木→田中→佐藤→高橋の順に常連さんが増える
+const THR_LABEL = t => t === 0.5 ? '半額待ち' : t === 0.3 ? '3割から' : '2割でも';
+const stageCfg = n => ({
+  target: 300 + 200 * (n - 1),
+  aunts: ORDER.slice(0, Math.min(4, n)),
+  quick: Math.max(0.6, 1 - 0.06 * (n - 1)),
+  pull: 2 * (n - 1),
+  feint: n >= 2 ? Math.min(0.3, 0.08 + 0.03 * n) : 0,
+  clerkSp: Math.min(2.4, 1.7 + 0.1 * (n - 1)),
+});
+let run = {stage:1, total:0};
+let bestDay = 0; try { bestDay = +localStorage.getItem('hangaku-bestday') || 0; } catch(e) {}
+
+const SVG_CLERK = `<svg viewBox="0 0 58 74" aria-hidden="true"><path d="M12 74 Q12 46 29 44 Q46 46 46 74Z" fill="#fff" stroke="#22262a" stroke-width="2"/><path d="M19 52 h20 v22 h-20z" fill="#2f9e5b"/><circle cx="29" cy="30" r="13" fill="#ffd9b8" stroke="#22262a" stroke-width="2"/><path d="M15 26 Q16 13 29 13 Q42 13 43 26Z" fill="#2f9e5b" stroke="#22262a" stroke-width="2"/><rect x="13" y="24" width="32" height="4" rx="2" fill="#22262a"/><circle cx="24" cy="32" r="1.8" fill="#22262a"/><circle cx="34" cy="32" r="1.8" fill="#22262a"/><path d="M25 37 Q29 40 33 37" fill="none" stroke="#22262a" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const GUN = `<svg viewBox="0 0 30 24" width="30" height="24" aria-hidden="true"><rect x="2" y="4" width="22" height="11" rx="3" fill="#f08a24" stroke="#22262a" stroke-width="2"/><rect x="12" y="13" width="7" height="10" rx="2" fill="#555" stroke="#22262a" stroke-width="2"/><rect x="22" y="7" width="6" height="5" fill="#ffe14d" stroke="#22262a" stroke-width="1.5"/></svg>`;
+const svgAunt = a => `<svg viewBox="0 0 58 74" aria-hidden="true"><path d="M10 74 Q10 46 29 44 Q48 46 48 74Z" fill="${a.color}" stroke="#22262a" stroke-width="2"/><path d="M18 56 h22 v18 h-22z" fill="#fff" opacity=".85"/><circle cx="29" cy="31" r="12" fill="#ffdcc4" stroke="#22262a" stroke-width="2"/>${[0,1,2,3,4,5,6].map(i => `<circle cx="${17 + i * 4}" cy="${20 + Math.abs(3 - i) * 1.4}" r="5" fill="${a.hair}"/>`).join('')}<circle cx="24.5" cy="33" r="1.6" fill="#22262a"/><circle cx="33.5" cy="33" r="1.6" fill="#22262a"/><path d="M26 38 Q29 40 32 38" fill="none" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round"/><path d="M44 58 q8 0 8 8 v6 h-8" fill="none" stroke="#7a5a3a" stroke-width="2.5"/></svg>`;
+
+// ── DOM ──
+const laneEl = $('lane'), caseEl = $('case'), floorEl = $('floorArea'), cartEl = $('cart');
+const clerkEl = document.createElement('div'); clerkEl.className = 'char clerk';
+clerkEl.innerHTML = `<div class="bub"></div>${SVG_CLERK}<span class="nm">店員さん</span>`;
+const gunEl = document.createElement('div'); gunEl.innerHTML = GUN; gunEl.style.cssText = 'position:absolute;bottom:14px;right:-22px;transition:transform .15s;transform-origin:20% 80%';
+clerkEl.appendChild(gunEl);
+const auntEls = AUNTS.map(a => {
+  const el = document.createElement('div'); el.className = 'char aunt';
+  el.innerHTML = `<div class="bub"></div>${svgAunt(a)}<span class="nm" style="color:${a.color}">${a.name}<br><small style="color:#6b7378;font-weight:500">${a.thr === 0.5 ? '半額待ち' : a.thr === 0.3 ? '3割から' : '2割でも'}</small></span>`;
+  el.hidden = true; return el;
+});
+laneEl.append(...auntEls, clerkEl);
+const slotEls = [];
+for (let i = 0; i < 8; i++) {
+  const b = document.createElement('button'); b.className = 'slot'; b.dataset.i = i;
+  b.innerHTML = `<span class="food"><span class="em"></span><span class="cnt"></span></span><span class="tag"><span class="n"></span><span class="p"></span></span>`;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); onSlot(i); });
+  b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSlot(i); } });
+  caseEl.appendChild(b); slotEls.push(b);
+}
+const colX = c => (c + 0.5) / 4 * 100;
+
+// ── 状態 ──
+let S, state = 'title';
+function newGame(n = 1) {
+  const cfg = stageCfg(n);
+  const menu = shuffle(MENU.slice()).slice(0, 8);
+  S = {
+    t:0, saved:0, cart:[], tug:null, n, cfg,
+    slots: menu.map((m, i) => ({i, col:i % 4, row:Math.floor(i / 4), ...m, stock:1 + Math.floor(Math.random() * 2), disc:0, reacher:null, dirty:true, stampNew:false})),
+    clerk:{x:-0.8, tx:0, state:'walk', slot:null, timer:0, feint:false},
+    aunts: AUNTS.map((a, k) => ({...a, k, x:k % 2 ? 3.8 : -0.6, tx:1.5, state:'off', slot:null, timer:0, off:[-0.32, 0.32, -0.14, 0.16][k],
+      join: cfg.aunts.includes(k) ? 0 : Infinity, react:[a.react[0] * cfg.quick, a.react[1] * cfg.quick], pull:a.pull + cfg.pull})),
+  };
+  S.clerk.tx = S.slots[0].col;
+}
+newGame();
+
+const phaseDisc = t => t < 10 ? 0.2 : t < 20 ? 0.3 : 0.5;
+const valid = s => s && s.stock > 0;
+
+function fx(slot, text, color) {
+  const r = slotEls[slot.i].getBoundingClientRect(), f = floorEl.getBoundingClientRect();
+  const el = document.createElement('div'); el.className = 'fx'; el.textContent = text; el.style.color = color;
+  el.style.left = (r.left - f.left + r.width / 2) + 'px'; el.style.top = (r.top - f.top + r.height / 2) + 'px';
+  floorEl.appendChild(el); setTimeout(() => el.remove(), 1400);
+}
+
+function takeOne(slot) {
+  slot.stock--; slot.dirty = true; slot.reacher = null;
+  if (S.tug && S.tug.slot === slot) S.tug = null;
+  for (const a of S.aunts) if (a.slot === slot && (a.state === 'react' || a.state === 'reach')) { a.state = 'wander'; a.slot = null; }
+}
+function playerTake(slot) {
+  const paid = slot.disc ? discPrice(slot.p, slot.disc) : slot.p;
+  S.cart.push({n:slot.n, e:slot.e, p:slot.p, disc:slot.disc, paid});
+  S.saved += slot.p - paid;
+  const winding = S.clerk.state === 'wind' && S.clerk.slot === slot;
+  if (!slot.disc) fx(slot, winding ? 'フライング！定価…' : '定価でカゴへ…', '#6b7378');
+  else if (winding && phaseDisc(S.t) > slot.disc) fx(slot, `ゲット −${slot.p - paid}円（待てば…）`, '#f08a24');
+  else fx(slot, `ゲット！ −${slot.p - paid}円`, '#e23b2e');
+  takeOne(slot);
+  renderCart();
+  if (S.saved >= S.cfg.target && S.saved - (slot.p - paid) < S.cfg.target) fx(slot, '目標達成！', '#2f9e5b');
+  if (S.cart.length >= CART_MAX) endGame('カゴがいっぱい');
+}
+function onSlot(i) {
+  if (state !== 'play') return;
+  const slot = S.slots[i];
+  if (S.tug) { if (S.tug.slot === slot) S.tug.p += 9; return; }
+  if (!valid(slot)) return;
+  const r = slot.reacher;
+  if (r && r.state === 'reach') { S.tug = {slot, aunt:r, p:50}; r.state = 'tug'; slot.dirty = true; return; }
+  playerTake(slot);
+}
+
+// ── 店員さん ──
+function clerkPickTarget() {
+  const d = phaseDisc(S.t), c = S.clerk;
+  const cands = S.slots.filter(s => valid(s) && s.disc < d && !(c.feint && s === c.slot));
+  if (!cands.length) return null;
+  cands.sort((a, b) => Math.abs(a.col - c.x) - Math.abs(b.col - c.x) + (a.row - b.row) * 0.01);
+  return pick(cands.slice(0, 2));
+}
+function updateClerk(dt) {
+  const c = S.clerk;
+  if (c.state === 'walk' || c.state === 'idle') {
+    if (!c.slot || !valid(c.slot) || c.slot.disc >= phaseDisc(S.t)) { c.slot = clerkPickTarget(); c.feint = false; }
+    c.tx = c.slot ? c.slot.col : (c.state === 'idle' ? c.tx : 1.5);
+    const dx = c.tx - c.x, sp = S.cfg.clerkSp * dt;
+    if (Math.abs(dx) > sp) c.x += Math.sign(dx) * sp;
+    else { c.x = c.tx; if (c.slot) { c.state = 'wind'; c.timer = rand(0.5, 1.05); c.willFeint = S.t > 4 && Math.random() < S.cfg.feint; } else c.state = 'idle'; }
+  } else if (c.state === 'wind') {
+    c.timer -= dt;
+    if (!valid(c.slot)) { c.state = 'walk'; c.slot = null; return; }
+    if (c.timer <= 0) {
+      if (c.willFeint) { c.feint = true; c.state = 'after'; c.timer = 0.5; c.bubble = '…あれ？'; return; }
+      c.slot.disc = phaseDisc(S.t); c.slot.dirty = true; c.slot.stampNew = true;
+      fx(c.slot, 'ペタッ！' + DISC_LABEL[c.slot.disc], c.slot.disc === 0.5 ? '#e23b2e' : '#22262a');
+      c.state = 'after'; c.timer = 0.45; c.bubble = '';
+    }
+  } else if (c.state === 'after') {
+    c.timer -= dt;
+    if (c.timer <= 0) { c.state = 'walk'; c.bubble = ''; const prev = c.slot; c.slot = clerkPickTarget(); if (c.feint && c.slot === prev) c.slot = null; }
+  }
+}
+
+// ── 奥様 ──
+function updateAunt(a, dt) {
+  if (a.state === 'off') { if (S.t >= a.join) { a.state = 'wander'; auntEls[a.k].hidden = false; } else return; }
+  const move = (tx, sp) => { const dx = tx - a.x, s = sp * dt; if (Math.abs(dx) > s) a.x += Math.sign(dx) * s; else a.x = tx; return Math.abs(tx - a.x) < 0.05; };
+  if (a.state === 'cool') { a.timer -= dt; move(a.coolX, 0.5); if (a.timer <= 0) a.state = 'wander'; return; }
+  if (a.state === 'wander') {
+    const goods = S.slots.filter(s => valid(s) && s.disc >= a.thr && !(s.reacher && s.reacher !== a));
+    if (goods.length) {
+      goods.sort((p, q) => (Math.abs(p.col - a.x) - Math.abs(q.col - a.x)) - (p.p * p.disc - q.p * q.disc) / 900);
+      a.slot = goods[0];
+      if (move(a.slot.col, 1.15)) { a.state = 'react'; a.timer = rand(...a.react); }
+    } else {
+      // 店員さんの近くで待ちかまえる
+      const c = S.clerk, aim = c.slot && phaseDisc(S.t) >= a.thr ? c.slot.col : c.x;
+      move(Math.max(0, Math.min(3, aim + a.off * 2)), 0.9); a.slot = null;
+    }
+  } else if (a.state === 'react') {
+    if (!valid(a.slot) || a.slot.disc < a.thr || (a.slot.reacher && a.slot.reacher !== a)) { a.state = 'wander'; a.slot = null; return; }
+    a.timer -= dt;
+    if (a.timer <= 0) { a.state = 'reach'; a.timer = 0.6; a.slot.reacher = a; a.slot.dirty = true; }
+  } else if (a.state === 'reach') {
+    if (!valid(a.slot)) { a.state = 'wander'; a.slot = null; return; }
+    a.timer -= dt;
+    if (a.timer <= 0) {
+      const s = a.slot; fx(s, `${a.name}が取った！`, a.color);
+      takeOne(s); a.state = 'cool'; a.timer = rand(2.4, 4); a.coolX = Math.max(0, Math.min(3, a.x + rand(-0.8, 0.8))); a.slot = null;
+    }
+  }
+}
+function updateTug(dt) {
+  const T = S.tug; if (!T) return;
+  T.p -= T.aunt.pull * dt;
+  T.slot.dirty = true;
+  if (T.p >= 100) {
+    const a = T.aunt; S.tug = null; T.slot.reacher = null;
+    a.state = 'cool'; a.timer = rand(2, 3.2); a.coolX = a.x; a.slot = null;
+    playerTake(T.slot);
+  } else if (T.p <= 0) {
+    const a = T.aunt, s = T.slot; S.tug = null;
+    fx(s, `${a.name}に負けた…`, a.color);
+    takeOne(s); a.state = 'cool'; a.timer = rand(2.4, 4); a.coolX = a.x; a.slot = null;
+  }
+}
+
+// ── 描画 ──
+function renderSlot(s) {
+  const el = slotEls[s.i];
+  el.classList.toggle('empty', !valid(s));
+  el.querySelector('.em').textContent = s.e;
+  el.querySelector('.cnt').textContent = s.stock > 1 ? '×' + s.stock : '';
+  el.querySelector('.n').textContent = s.n;
+  el.querySelector('.p').innerHTML = s.disc ? `<s>${s.p}</s><b>${discPrice(s.p, s.disc)}円</b>` : `${s.p}円`;
+  el.setAttribute('aria-label', `${s.n} ${s.disc ? DISC_LABEL[s.disc] + ' ' + discPrice(s.p, s.disc) : s.p}円 残り${s.stock}`);
+  let st = el.querySelector('.sticker');
+  if (s.disc && valid(s)) {
+    if (!st) { st = document.createElement('span'); el.appendChild(st); }
+    st.className = 'sticker d' + Math.round(s.disc * 100) + (s.stampNew ? ' stamp' : '');
+    st.textContent = DISC_LABEL[s.disc];
+    s.stampNew = false;
+  } else if (st) st.remove();
+  let rc = el.querySelector('.reach');
+  const r = s.reacher;
+  if (r && valid(s) && (r.state === 'reach')) {
+    if (!rc) { rc = document.createElement('span'); rc.className = 'reach'; el.appendChild(rc); }
+    rc.innerHTML = `<span class="who" style="background:${r.color}">${r.name}</span><span class="hand">✋</span>`;
+  } else if (rc) rc.remove();
+  let tg = el.querySelector('.tug');
+  if (S.tug && S.tug.slot === s) {
+    if (!tg) { tg = document.createElement('span'); tg.className = 'tug'; tg.innerHTML = '<b>連打！</b><span class="tb"><i></i></span><small></small>'; el.appendChild(tg); }
+    tg.querySelector('i').style.width = Math.max(0, Math.min(100, S.tug.p)) + '%';
+    tg.querySelector('small').textContent = 'vs ' + S.tug.aunt.name;
+  } else if (tg) tg.remove();
+}
+function renderCart() {
+  cartEl.innerHTML = '';
+  for (let i = 0; i < CART_MAX; i++) {
+    const it = S.cart[i], d = document.createElement('div');
+    d.className = 'it' + (it ? (it.disc ? ' d' : ' full') : '');
+    if (it) { d.textContent = it.e; if (it.disc) d.dataset.d = DISC_LABEL[it.disc]; }
+    cartEl.appendChild(d);
+  }
+}
+let lastSaved = -1;
+function render(now) {
+  for (const s of S.slots) if (s.dirty) { renderSlot(s); s.dirty = false; }
+  // 店員さんの狙い表示
+  slotEls.forEach((el, i) => {
+    const on = state === 'play' && S.clerk.state === 'wind' && S.clerk.slot === S.slots[i];
+    let t = el.querySelector('.target');
+    if (on && !t) { t = document.createElement('span'); t.className = 'target'; el.appendChild(t); }
+    if (!on && t) t.remove();
+  });
+  const c = S.clerk;
+  clerkEl.style.left = colX(c.x) + '%';
+  clerkEl.querySelector('.bub').textContent = state !== 'play' ? '' : c.state === 'wind' ? 'カチッ…' : (c.bubble || '');
+  gunEl.style.transform = c.state === 'wind' ? 'rotate(-20deg) translateY(-4px)' : c.state === 'after' && !c.feint ? 'rotate(25deg) translateY(4px)' : 'none';
+  S.aunts.forEach((a, k) => {
+    const el = auntEls[k];
+    el.style.left = colX(a.x + a.off) + '%';
+    const bub = el.querySelector('.bub');
+    bub.textContent = a.state === 'react' || a.state === 'reach' ? (a.slot ? a.slot.e + 'ちょうだい' : '')
+      : a.state === 'tug' ? 'ちょっと！' : '';
+  });
+  // HUD
+  const m = Math.min(30, Math.floor(S.t));
+  $('clock').textContent = `20:${String(m).padStart(2, '0')}`;
+  $('clock').classList.toggle('late', S.t > 25);
+  $('phase').textContent = state !== 'play' ? 'まだ定価' : S.t > 25 ? '蛍の光が流れてきた' : DISC_LABEL[phaseDisc(S.t)] + 'タイム';
+  if (S.saved !== lastSaved) {
+    const ok = S.saved >= S.cfg.target;
+    $('saved').textContent = (ok ? '✔ ' : '') + yen(S.saved); $('saved').classList.toggle('ok', ok);
+    lastSaved = S.saved;
+  }
+}
+
+// ── 進行 ──
+function endGame(reason) {
+  if (state !== 'play') return;
+  state = 'over';
+  const n = S.n, cleared = S.saved >= S.cfg.target;
+  if (cleared) { run.total += S.saved; if (n > bestDay) { bestDay = n; try { localStorage.setItem('hangaku-bestday', String(bestDay)); } catch(e) {} } }
+  const paid = S.cart.reduce((a, b) => a + b.paid, 0), list = S.cart.reduce((a, b) => a + b.p, 0);
+  const nextCfg = stageCfg(n + 1), newcomer = nextCfg.aunts.find(k => !S.cfg.aunts.includes(k));
+  const nextNote = cleared
+    ? `明日（${n + 1}日目）の目標は${yen(nextCfg.target)}。` + (newcomer !== undefined ? `<br>${AUNTS[newcomer].name}（${THR_LABEL(AUNTS[newcomer].thr)}）も来るらしい。` : '<br>常連さんたちの手が早くなってきた。')
+    : `あと${yen(S.cfg.target - S.saved)}足りなかった。`;
+  $('receipt').innerHTML = `<h2>スーパーみなみ 惣菜部<br>${n}日目（${WEEK[(n - 1) % 7]}）${reason}</h2>
+    ${S.cart.length ? S.cart.map(it => `<div class="row"><span>${it.n}</span><span>${yen(it.p)}</span></div>${it.disc ? `<div class="row disc"><span>${DISC_LABEL[it.disc]}</span><span>-${yen(it.p - it.paid)}</span></div>` : ''}`).join('') : '<div class="row"><span>お買い上げなし</span><span></span></div>'}
+    <hr><div class="row"><span>小計（定価）</span><span>${yen(list)}</span></div>
+    <div class="row big"><span>お支払い</span><span>${yen(paid)}</span></div>
+    <div class="row big" style="color:var(--red)"><span>お値引き合計</span><span>${yen(S.saved)}</span></div>
+    <div class="row"><span>今日の目標</span><span>${yen(S.cfg.target)}</span></div>
+    <hr><div class="row"><span>これまでのお値引き</span><span>${yen(run.total)}</span></div>
+    <div class="row"><span>最高到達</span><span>${bestDay ? bestDay + '日目' : '—'}</span></div>
+    <div class="stamp" style="color:${cleared ? 'var(--red)' : 'var(--muted)'}">${cleared ? '目標達成' : '目標未達'}</div>
+    <div class="next">${nextNote}</div>`;
+  $('retryBtn').textContent = cleared ? `次の日へ（${n + 1}日目）` : `${n}日目をやり直す`;
+  $('retryBtn').onclick = () => startStage(cleared ? n + 1 : n);
+  $('resetBtn').hidden = cleared || n === 1;
+  setTimeout(() => { $('overOv').hidden = false; }, 700);
+  if (!cleared && !S.sent) { S.sent = true; const v = run.total; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
+}
+function startStage(n) {
+  if (n === 1) run.total = 0;
+  run.stage = n;
+  newGame(n); state = 'play'; lastSaved = -1;
+  auntEls.forEach(el => el.hidden = true);
+  floorEl.querySelectorAll('.fx').forEach(e => e.remove());
+  S.slots.forEach(s => s.dirty = true);
+  renderCart();
+  $('day').textContent = `${n}日目（${WEEK[(n - 1) % 7]}）`;
+  $('goal').textContent = `目標 ${yen(S.cfg.target)}お得に`;
+  $('startOv').hidden = true; $('overOv').hidden = true;
+}
+$('startBtn').onclick = () => startStage(1);
+$('resetBtn').onclick = () => startStage(1);
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state === 'play') {
+    S.t += dt;
+    updateClerk(dt);
+    for (const a of S.aunts) updateAunt(a, dt);
+    updateTug(dt);
+    if (state === 'play' && S.t >= GAME_LEN) endGame('閉店のお時間です');
+    if (state === 'play' && S.slots.every(s => !valid(s))) endGame('売り切れました');
+  } else if (state === 'title') {
+    // タイトル裏で店員さんがうろうろ
+    S.clerk.x = 1.5 + Math.sin(now / 1500) * 1.2;
+  }
+  render(now);
+  requestAnimationFrame(loop);
+}
+// タイトル裏の見本：数か所にシール
+S.slots[1].disc = 0.5; S.slots[4].disc = 0.3; S.slots[6].disc = 0.2;
+S.aunts.slice(0, 2).forEach((a, k) => { auntEls[k].hidden = false; a.x = k ? 2.2 : 0.8; });
+renderCart();
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

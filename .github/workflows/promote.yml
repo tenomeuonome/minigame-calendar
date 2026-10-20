@@ -1,4 +1,7 @@
-name: Promote daily game
+name: Promote daily game (停止中)
+
+# 2026-10-20 GameCenterEG(gamecenter.egoapps.com)へ移ったので止めた。
+# 公開日は games.json の date で決まり、告知はVPSが毎朝7:00に送る。
 
 # 毎日 00:10(日本時間) に、stock.jsonの先頭を今日の日付でgames.jsonに登録する。
 # ローカルのタスクスケジューラ(minigame-promote.vbs)と同じ役目だが、
@@ -6,8 +9,6 @@ name: Promote daily game
 # 手動で今すぐ動かしたいときは Actions タブから "Run workflow" を押せばいい(workflow_dispatch)。
 
 on:
-  schedule:
-    - cron: '10 15 * * *'  # UTC 15:10 = JST 00:10
   workflow_dispatch: {}
 
 permissions:
@@ -15,6 +16,7 @@ permissions:
 
 jobs:
   promote:
+    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

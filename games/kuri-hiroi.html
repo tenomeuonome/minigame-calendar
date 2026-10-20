@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>栗拾い</title>
+<style>
+  body {
+    margin: 0;
+    background: #2b1d0f;
+    color: #f5e9d6;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  h1 { font-size: 20px; margin: 8px 0; }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 800px;
+    max-width: 100%;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  #hud .score { font-weight: bold; }
+  #wrap { position: relative; }
+  canvas { background: #5a3d20; border: 3px solid #3a2712; border-radius: 10px; display: block; touch-action: none; }
+  #msg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(0,0,0,0.78); border-radius: 10px; text-align: center;
+  }
+  #msg h2 { font-size: 26px; margin-bottom: 8px; }
+  #msg p { color: #ddd; margin-bottom: 16px; }
+  #msg button { padding: 8px 20px; font-size: 15px; border-radius: 6px; border: none; background: #c87f2a; color: #fff; cursor: pointer; }
+  #help { max-width: 800px; font-size: 13px; color: #cbb89a; margin-top: 10px; line-height: 1.7; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>🌰 栗拾い</h1>
+  <div id="hud">
+    <div>残り時間: <span id="time">60</span>秒</div>
+    <div class="score">あなた: 🌰<span id="myScore">0</span></div>
+    <div>🐻<span id="bearScore">0</span> 🧑<span id="humanScore">0</span> 🐒<span id="monkeyScore">0</span></div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="800" height="500"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    矢印キー / WASD で移動。ヘルメットを被っているので落ちてくる栗は当たってもダメージ無し(ただし少しよろける)。<br>
+    地面に落ちた栗は、熊・ヒト・サルも拾いに来る。誰よりも多く拾おう。
+  </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const TREE_X = W / 2, TREE_Y = 60;
+
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    player: { x: W/2, y: H - 60, speed: 2.8, stun: 0 },
+    rivals: [
+      { name: 'bear', emoji: '🐻', x: 100, y: 300, speed: 1.6, target: null },
+      { name: 'human', emoji: '🧑', x: 700, y: 300, speed: 1.7, target: null },
+      { name: 'monkey', emoji: '🐒', x: 400, y: 420, speed: 2.0, target: null },
+    ],
+    falling: [],   // 木から落ちてくる途中の栗(当たると よろける)
+    ground: [],    // 地面に落ちて拾える栗
+    scores: { me: 0, bear: 0, human: 0, monkey: 0 },
+    timeLeft: 60,
+    keys: {},
+    running: true,
+    spawnTimer: 0,
+  };
+}
+
+document.addEventListener('keydown', e => { state.keys[e.key] = true; });
+document.addEventListener('keyup', e => { state.keys[e.key] = false; });
+
+function spawnChestnut() {
+  const targetX = 120 + Math.random() * (W - 240);
+  const targetY = 150 + Math.random() * (H - 220);
+  state.falling.push({ x: TREE_X, y: TREE_Y, targetX, targetY, progress: 0 });
+}
+
+function updateFalling() {
+  for (let i = state.falling.length - 1; i >= 0; i--) {
+    const f = state.falling[i];
+    f.progress += 0.02;
+    f.x = TREE_X + (f.targetX - TREE_X) * f.progress;
+    f.y = TREE_Y + (f.targetY - TREE_Y) * f.progress;
+
+    // プレイヤーに当たったら よろける(ヘルメットのおかげでダメージは無い)
+    const d = Math.hypot(f.x - state.player.x, f.y - state.player.y);
+    if (d < 20 && f.progress > 0.5 && state.player.stun <= 0) {
+      state.player.stun = 40; // 約0.6秒ひるむ
+    }
+
+    if (f.progress >= 1) {
+      state.ground.push({ x: f.targetX, y: f.targetY, taken: false });
+      state.falling.splice(i, 1);
+    }
+  }
+}
+
+function moveTowards(entity, tx, ty, speed) {
+  const dx = tx - entity.x, dy = ty - entity.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return;
+  entity.x += (dx / dist) * speed;
+  entity.y += (dy / dist) * speed;
+}
+
+function updatePlayer() {
+  if (state.player.stun > 0) { state.player.stun--; return; }
+  const k = state.keys;
+  let dx = 0, dy = 0;
+  if (k['ArrowLeft'] || k['a']) dx -= 1;
+  if (k['ArrowRight'] || k['d']) dx += 1;
+  if (k['ArrowUp'] || k['w']) dy -= 1;
+  if (k['ArrowDown'] || k['s']) dy += 1;
+  const len = Math.hypot(dx, dy) || 1;
+  state.player.x = Math.max(16, Math.min(W - 16, state.player.x + (dx/len) * state.player.speed));
+  state.player.y = Math.max(100, Math.min(H - 16, state.player.y + (dy/len) * state.player.speed));
+}
+
+function nearestGroundChestnut(x, y) {
+  let best = null, bestDist = Infinity;
+  for (const g of state.ground) {
+    if (g.taken) continue;
+    const d = Math.hypot(g.x - x, g.y - y);
+    if (d < bestDist) { bestDist = d; best = g; }
+  }
+  return best;
+}
+
+function updateRivals() {
+  for (const r of state.rivals) {
+    const target = nearestGroundChestnut(r.x, r.y);
+    if (target) {
+      moveTowards(r, target.x, target.y, r.speed);
+      if (Math.hypot(target.x - r.x, target.y - r.y) < 14) {
+        target.taken = true;
+        state.scores[r.name]++;
+      }
+    }
+  }
+}
+
+function checkPlayerPickup() {
+  if (state.player.stun > 0) return;
+  const target = nearestGroundChestnut(state.player.x, state.player.y);
+  if (target && Math.hypot(target.x - state.player.x, target.y - state.player.y) < 18) {
+    target.taken = true;
+    state.scores.me++;
+  }
+}
+
+function update() {
+  if (!state.running) return;
+  state.spawnTimer--;
+  if (state.spawnTimer <= 0) {
+    spawnChestnut();
+    state.spawnTimer = 45 + Math.random() * 40;
+  }
+  updateFalling();
+  updatePlayer();
+  checkPlayerPickup();
+  updateRivals();
+  state.ground = state.ground.filter(g => !g.taken);
+
+  document.getElementById('myScore').textContent = state.scores.me;
+  document.getElementById('bearScore').textContent = state.scores.bear;
+  document.getElementById('humanScore').textContent = state.scores.human;
+  document.getElementById('monkeyScore').textContent = state.scores.monkey;
+
+  state.timeLeft -= 1/60;
+  document.getElementById('time').textContent = Math.max(0, Math.ceil(state.timeLeft));
+  if (state.timeLeft <= 0) endGame();
+}
+
+function endGame() {
+  state.running = false;
+  const s = state.scores;
+  const best = Math.max(s.bear, s.human, s.monkey);
+  const win = s.me > best;
+  document.getElementById('msgTitle').textContent = win ? '🎉 1位！' : '😢 負けた…';
+  document.getElementById('msgText').textContent =
+    `あなた: ${s.me}個 / 熊: ${s.bear}個 / ヒト: ${s.human}個 / サル: ${s.monkey}個`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(s.me), 1200);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // 木
+  ctx.fillStyle = '#4a3418';
+  ctx.fillRect(TREE_X - 10, TREE_Y, 20, 60);
+  ctx.beginPath();
+  ctx.arc(TREE_X, TREE_Y - 10, 55, 0, Math.PI * 2);
+  ctx.fillStyle = '#3f6b2a';
+  ctx.fill();
+
+  // 落下中の栗
+  ctx.font = '22px sans-serif';
+  for (const f of state.falling) ctx.fillText('🌰', f.x - 11, f.y + 11);
+
+  // 地面の栗
+  for (const g of state.ground) if (!g.taken) ctx.fillText('🌰', g.x - 11, g.y + 11);
+
+  // ライバル
+  ctx.font = '28px sans-serif';
+  for (const r of state.rivals) ctx.fillText(r.emoji, r.x - 14, r.y + 14);
+
+  // プレイヤー(ヘルメットのマークつき)
+  const p = state.player;
+  ctx.font = '30px sans-serif';
+  ctx.fillText(p.stun > 0 ? '😵' : '⛑️', p.x - 15, p.y + 15);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+resetGame();
+loop();
+</script>
+</body>
+</html>

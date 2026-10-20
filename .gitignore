@@ -1,4 +1,6 @@
-# PC用の部品(GitHub Pages では使わない)
+# PC用の部品・ローカルの記録(公開しない)
 minigame-promote.vbs
 task-backup/
 promote.log
+autopush.log
+gamecenter.db*

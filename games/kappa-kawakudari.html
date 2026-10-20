@@ -1,0 +1,513 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>カッパの川くだり</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@500&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+/* 夏の昼の川、明るい一つの見た目に固定：上にHUD（皿の水・距離・きゅうり）、中央に縦スクロールの川、下に「もぐる」ボタン */
+:root{
+  --bg:#e9f1e0; --ink:#1f2d24; --muted:#5f7064; --panel:#fffdf4; --line:#c9d6bf;
+  --kappa:#5fae3e; --water:#2e8fa8; --plate:#6fd0f0; --cucumber:#3f8f2a; --red:#e24b3b; --sun:#ffc94a;
+  --f-display:"Kiwi Maru","Hiragino Maru Gothic ProN","Yu Gothic",serif;
+  --f-body:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:8px 12px}
+.plate{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;min-width:0}
+.plate svg{width:30px;height:30px}
+.plate .lbl{font-size:10px;color:var(--muted);display:block;margin-bottom:3px}
+.plate .bar{height:10px;border-radius:5px;background:#dfe7d6;overflow:hidden}
+.plate .bar i{display:block;height:100%;width:100%;background:var(--plate);transition:background .2s}
+.stat{text-align:right;line-height:1.05}
+.stat b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums;font-weight:500}
+.stat small{display:block;font-size:10px;color:var(--muted)}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+canvas{display:block;touch-action:none;border-radius:14px;box-shadow:0 0 0 2px var(--line)}
+.controls{display:flex;gap:10px;align-items:center}
+.controls p{flex:1;margin:0;font-size:12px;color:var(--muted);line-height:1.5;min-width:0}
+#diveBtn{font-family:var(--f-display);font-size:20px;background:var(--water);color:#fff;border:0;border-radius:999px;padding:12px 26px;cursor:pointer;
+  box-shadow:0 4px 0 #1d6274;touch-action:manipulation}
+#diveBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #1d6274}
+#diveBtn.cool{opacity:.5}
+#diveBtn:focus-visible,.go:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(233,241,224,.93);border-radius:14px;padding:16px;box-sizing:border-box;overflow-y:auto}
+.card{max-width:350px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--f-display);font-weight:500;font-size:36px;margin:0;line-height:1.2;color:var(--kappa)}
+.card p{margin:0;font-size:13px;line-height:1.75}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:3px}
+.card li::marker{color:var(--kappa)}
+.card em{font-style:normal;font-weight:800;color:var(--water)}
+.zones{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.zones b{color:var(--kappa)}
+.result{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;font-variant-numeric:tabular-nums;margin:0}
+.result dt{color:var(--muted)} .result dd{margin:0;text-align:right}
+.go{font-family:var(--f-display);font-size:19px;background:var(--kappa);color:#fff;border:0;border-radius:999px;padding:10px 26px;cursor:pointer;align-self:flex-start;box-shadow:0 4px 0 #3c7a24}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #3c7a24}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div class="plate">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="15" cy="17" rx="13" ry="8" fill="#fff" stroke="#1f2d24" stroke-width="2"/><ellipse cx="15" cy="16" rx="9" ry="4.5" fill="#6fd0f0"/></svg>
+      <div><span class="lbl" id="plateLbl">頭の皿の水</span><div class="bar"><i id="plateBar"></i></div></div>
+    </div>
+    <div class="stat"><b id="dist">0m</b><small id="zone">渓流</small></div>
+    <div class="stat"><b id="cuc">0</b><small>きゅうり</small></div>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="川を流れるカッパ"></canvas>
+    <div class="overlay" id="startOv">
+      <div class="card">
+        <h1>カッパの川くだり</h1>
+        <p>カッパが山から海まで川をくだる。頭の皿の水がなくなると、カッパは力が出なくなってしまう。</p>
+        <ul>
+          <li><em>左右にドラッグ</em>で泳ぐ方向を変える。</li>
+          <li><em>もぐる</em>（タップやボタン、Space）で少しの間水にもぐる。水面の流木やカヌーをくぐれる。</li>
+          <li>水面にいると、お日さまで皿の水がだんだん乾く。<em>もぐると皿に水がたまる</em>。</li>
+          <li>ぶつかると皿の水がこぼれる。岩と渦は水面でも水の中でも危ない。</li>
+          <li>きゅうりを取ると点数が増えて、皿の水も少し戻る。</li>
+        </ul>
+        <div class="zones">
+          <b>渓流</b><span>岩・流木・渦</span>
+          <b>田んぼ</b><span>＋釣り針・サギ・鯉の群れ（水の中）</span>
+          <b>町</b><span>＋カヌー・ペットボトル・網（水の中）</span>
+        </div>
+        <button class="go" id="startBtn">川へ飛びこむ</button>
+      </div>
+    </div>
+    <div class="overlay" id="overOv" hidden>
+      <div class="card">
+        <h1 id="overTitle">ひからびた…</h1>
+        <dl class="result">
+          <dt>くだった距離</dt><dd id="rDist">0m</dd>
+          <dt>たどり着いた所</dt><dd id="rZone">渓流</dd>
+          <dt>きゅうり</dt><dd id="rCuc">0本</dd>
+          <dt>点数</dt><dd id="rScore">0</dd>
+          <dt>最高点</dt><dd id="rBest">0</dd>
+        </dl>
+        <button class="go" id="retryBtn">もう一度くだる</button>
+      </div>
+    </div>
+  </div>
+  <div class="controls">
+    <p>ドラッグで左右 ／ タップでもぐる<br>PCは←→キーとSpace</p>
+    <button id="diveBtn">もぐる</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rand = (a, b) => a + Math.random() * (b - a);
+const W = 360; let H = 600, scale = 1, cssScale = 1;
+const KY = 0.3; // カッパの画面上の位置
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  H = Math.round(Math.max(480, Math.min(760, W * r.height / Math.max(1, r.width))));
+  const f = Math.max(0.1, Math.min(r.width / W, r.height / H));
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.style.width = W * f + 'px'; cv.style.height = H * f + 'px';
+  cv.width = Math.round(W * f * dpr); cv.height = Math.round(H * f * dpr);
+  scale = f * dpr; cssScale = f;
+}
+addEventListener('resize', resize);
+resize();
+
+// 川の形（世界座標 y は下流ほど大きい）
+const center = y => W / 2 + Math.sin(y / 260) * 46 + Math.sin(y / 97) * 14;
+const half = y => Math.max(92, 128 + Math.sin(y / 410) * 24 - Math.min(26, y / 400));
+const zoneOf = m => m < 250 ? 0 : m < 600 ? 1 : 2;
+const ZONES = ['渓流', '田んぼ', '町'];
+
+let state = 'title', G, K, objs, parts, pops;
+let best = 0; try { best = +localStorage.getItem('kappa-best') || 0; } catch(e) {}
+
+function newGame() {
+  G = {camY:0, speed:110, cuc:0, nextY:H * 0.9, heronT:6, t:0, over:0};
+  K = {x:center(H * KY), tx:center(H * KY), water:100, dive:0, cool:0, inv:0, wob:0};
+  objs = []; parts = []; pops = [];
+}
+newGame();
+
+function spawnAt(y) {
+  const m = y / 10, z = zoneOf(m), c = center(y), hw = half(y);
+  const pool = [['rock', 4], ['log', 3], ['cuc', 3]];
+  if (m > 100) pool.push(['whirl', 1.2]);
+  if (z >= 1) pool.push(['hook', 2], ['koi', 2]);
+  if (z >= 2) pool.push(['canoe', 2], ['bottle', 2], ['net', 1.6]);
+  let r = Math.random() * pool.reduce((a, p) => a + p[1], 0), type = 'rock';
+  for (const [t, w] of pool) { r -= w; if (r <= 0) { type = t; break; } }
+  const x = rand(c - hw + 30, c + hw - 30);
+  const o = {type, x, y, t:Math.random() * 6};
+  if (type === 'rock') { o.r = rand(16, 26); o.layer = 'both'; }
+  if (type === 'log') { o.w = rand(90, 140); o.h = 18; o.layer = 'surface'; o.x = Math.max(c - hw + o.w / 2, Math.min(c + hw - o.w / 2, x)); o.rot = rand(-0.15, 0.15); }
+  if (type === 'cuc') { o.layer = Math.random() < 0.45 ? 'under' : 'surface'; o.r = 10; }
+  if (type === 'whirl') { o.r = 62; o.layer = 'both'; o.x = rand(c - hw * 0.5, c + hw * 0.5); }
+  if (type === 'hook') { o.side = Math.random() < 0.5 ? -1 : 1; o.layer = 'surface'; o.x = c + o.side * rand(hw * 0.1, hw * 0.75); o.r = 12; }
+  if (type === 'koi') { o.layer = 'under'; o.vx = rand(40, 70) * (Math.random() < 0.5 ? -1 : 1); o.n = 4; }
+  if (type === 'canoe') { o.layer = 'surface'; o.vx = rand(30, 55) * (Math.random() < 0.5 ? -1 : 1); o.w = 64; o.h = 22; }
+  if (type === 'bottle') { o.layer = 'surface'; o.r = 9; }
+  if (type === 'net') { o.layer = 'under'; o.w = rand(100, 150); o.h = 10; o.x = Math.max(c - hw + o.w / 2, Math.min(c + hw - o.w / 2, x)); }
+  objs.push(o);
+}
+
+function dive() {
+  if (state !== 'play' || G.over || K.dive > 0 || K.cool > 0) return;
+  K.dive = 1.3;
+  for (let i = 0; i < 8; i++) parts.push({x:K.x + rand(-10, 10), y:kyWorld() + rand(-6, 6), vx:rand(-50, 50), vy:rand(-80, -20), life:0.5, c:'#fff'});
+  pop(K.x, kyWorld() - 26, 'ちゃぽん', '#fff');
+}
+const kyWorld = () => G.camY + H * KY;
+function pop(x, y, text, color) { pops.push({x, y, text, color, t:1}); }
+function hurt(text, amt = 25) {
+  if (K.inv > 0 || G.over) return;
+  K.water -= amt; K.inv = 1.2;
+  pop(K.x, kyWorld() - 30, text, '#e24b3b');
+  for (let i = 0; i < 10; i++) parts.push({x:K.x, y:kyWorld() - 12, vx:rand(-90, 90), vy:rand(-120, -40), life:0.6, c:'#6fd0f0'});
+}
+
+function circleRect(cx, cy, r, o) {
+  const dx = Math.max(Math.abs(cx - o.x) - o.w / 2, 0), dy = Math.max(Math.abs(cy - o.y) - o.h / 2, 0);
+  return dx * dx + dy * dy < r * r;
+}
+
+// ── 更新 ──
+const keys = {};
+function update(dt) {
+  const playing = state === 'play' && !G.over;
+  const m = G.camY / 10;
+  G.speed = state === 'play' ? Math.min(240, 110 + m * 0.12) : 70;
+  if (!G.over) G.camY += G.speed * dt;
+  while (G.nextY < G.camY + H + 200) { if (state === 'play' || G.nextY > H) spawnAt(G.nextY); G.nextY += Math.max(62, rand(80, 140) - m * 0.04); }
+  objs = objs.filter(o => o.y > G.camY - 120 && !o.gone);
+  const ky = kyWorld();
+
+  if (playing) {
+    G.t += dt;
+    // 操作
+    const kx = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+    if (kx) K.tx = K.x + kx * 40;
+    const c = center(ky), hw = half(ky);
+    K.tx = Math.max(c - hw + 16, Math.min(c + hw - 16, K.tx));
+    const d = K.tx - K.x, sp = 270 * dt;
+    K.x += Math.abs(d) > sp ? Math.sign(d) * sp : d;
+    if (kx) K.tx = K.x;
+    K.x = Math.max(c - hw + 14, Math.min(c + hw - 14, K.x));
+    // もぐる・皿の水
+    K.cool = Math.max(0, K.cool - dt); K.inv = Math.max(0, K.inv - dt);
+    if (K.dive > 0) { K.dive -= dt; K.water = Math.min(100, K.water + 20 * dt); if (K.dive <= 0) { K.cool = 0.45; pop(K.x, ky - 26, 'ぷはっ', '#fff'); } }
+    else K.water -= (2.6 + Math.min(1.6, m / 500)) * dt;
+    const under = K.dive > 0;
+    // サギ
+    if (zoneOf(m) >= 1) {
+      G.heronT -= dt;
+      if (G.heronT <= 0) { objs.push({type:'heron', x:K.x + rand(-20, 20), y:ky + G.speed * 1.0, t:0, layer:'surface'}); G.heronT = rand(4, 7); }
+    }
+    // 当たり判定
+    for (const o of objs) {
+      o.t += dt;
+      if (o.vx) {
+        o.x += o.vx * dt;
+        const cc = center(o.y), hh = half(o.y), mw = (o.w || 40) / 2;
+        if (o.x < cc - hh + mw || o.x > cc + hh - mw) o.vx *= -1;
+      }
+      const hitLayer = o.layer === 'both' || (o.layer === 'under') === under;
+      if (o.type === 'whirl') {
+        const dd = Math.hypot(K.x - o.x, ky - o.y);
+        if (dd < o.r) { const k = (1 - dd / o.r) * 160 * dt; K.x += (o.x - K.x) / (dd || 1) * k; K.tx += (o.x - K.x) / (dd || 1) * k; }
+        if (dd < 14) { hurt('ぐるぐる〜'); K.tx = K.x + (Math.random() < 0.5 ? -60 : 60); }
+        continue;
+      }
+      if (!hitLayer) continue;
+      if (o.type === 'cuc' && Math.hypot(K.x - o.x, ky - o.y) < 22) { o.gone = true; G.cuc++; K.water = Math.min(100, K.water + 6); pop(o.x, o.y - G.camY - 16 + G.camY, 'きゅうり！', '#3f8f2a'); continue; }
+      if (o.type === 'rock' && Math.hypot(K.x - o.x, ky - o.y) < o.r + 11) { hurt('ゴツン！'); K.tx = K.x + Math.sign(K.x - o.x || 1) * 50; }
+      if (o.type === 'log' && circleRect(K.x, ky, 12, o)) hurt('ドスッ');
+      if (o.type === 'net' && circleRect(K.x, ky, 12, o)) hurt('網にからまった', 20);
+      if (o.type === 'canoe' && circleRect(K.x, ky, 12, o)) hurt('ガツン！');
+      if (o.type === 'bottle' && Math.hypot(K.x - o.x, ky - o.y) < o.r + 11) { hurt('コツン', 12); o.gone = true; }
+      if (o.type === 'hook') { const hy = o.y + Math.sin(o.t * 2) * 8; if (Math.hypot(K.x - o.x, ky - hy) < o.r + 10) hurt('釣られかけた！', 22); }
+      if (o.type === 'koi') for (let i = 0; i < o.n; i++) { const fx = o.x + (i % 2) * 22 - 11, fy = o.y + (i - 1.5) * 16; if (Math.hypot(K.x - fx, ky - fy) < 18) { hurt('鯉にぶつかった', 18); break; } }
+      if (o.type === 'heron' && o.t > 1.0 && o.t < 1.25 && Math.hypot(K.x - o.x, ky - o.y) < 26) hurt('サギにつつかれた！', 30);
+    }
+    objs = objs.filter(o => !(o.type === 'heron' && o.t > 1.6));
+    if (K.water <= 0) { K.water = 0; G.over = 1.4; pop(K.x, ky - 34, 'へなへな…', '#5f7064'); }
+  } else if (state === 'play' && G.over) {
+    G.over -= dt; if (G.over <= 0) gameOver();
+  } else {
+    // タイトル画面ではゆらゆら
+    K.x = center(kyWorld()) + Math.sin(performance.now() / 900) * 40;
+  }
+  K.wob += dt;
+  for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt; p.life -= dt; }
+  parts = parts.filter(p => p.life > 0);
+  for (const p of pops) { p.t -= dt; p.y -= 30 * dt; }
+  pops = pops.filter(p => p.t > 0);
+}
+
+// ── 描画 ──
+const BANK = [
+  {land:'#6aa84f', edge:'#4f8a3a', deco:'tree'},
+  {land:'#8cc04a', edge:'#6a9a34', deco:'paddy'},
+  {land:'#c8c6bd', edge:'#a3a198', deco:'town'},
+];
+function draw(now) {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const cam = G.camY;
+  const sy = y => y - cam;
+  // 岸
+  for (let y = 0; y < H + 8; y += 8) {
+    const wy = cam + y, z = zoneOf(wy / 10), b = BANK[z];
+    ctx.fillStyle = b.land; ctx.fillRect(0, y, W, 8.5);
+  }
+  // 岸の飾り（世界座標に固定）
+  const step = 46;
+  for (let wy = Math.floor(cam / step) * step; wy < cam + H + step; wy += step) {
+    const z = zoneOf(wy / 10), c = center(wy), hw = half(wy), y = sy(wy);
+    for (const side of [-1, 1]) {
+      const seed = Math.abs(Math.sin(wy * 12.9898 + side * 78.233)) * 1000 % 1;
+      const ex = c + side * (hw + 18 + seed * 30);
+      if (z === 0) { ctx.fillStyle = '#3f7d2e'; ctx.beginPath(); ctx.arc(ex, y, 14 + seed * 8, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#5a9a3e'; ctx.beginPath(); ctx.arc(ex - 4, y - 4, 8 + seed * 4, 0, Math.PI * 2); ctx.fill(); }
+      if (z === 1) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; const x0 = side < 0 ? 0 : c + hw + 12; const x1 = side < 0 ? c - hw - 12 : W; ctx.strokeRect(x0 + 4, y - 20, x1 - x0 - 8, 40); for (let i = 0; i < 5; i++) { ctx.fillStyle = '#5f9a2e'; ctx.fillRect(x0 + 10 + i * ((x1 - x0 - 20) / 5), y - 6 + (i % 2) * 8, 3, 6); } }
+      if (z === 2 && seed > 0.5) { ctx.fillStyle = seed > 0.75 ? '#9aa6b8' : '#b8a48c'; ctx.fillRect(ex - 14, y - 16, 28, 24); ctx.fillStyle = '#6b7488'; ctx.fillRect(ex - 16, y - 20, 32, 6); }
+    }
+  }
+  // 川
+  ctx.beginPath();
+  for (let y = -8; y <= H + 8; y += 8) ctx.lineTo(center(cam + y) - half(cam + y), y);
+  for (let y = H + 8; y >= -8; y -= 8) ctx.lineTo(center(cam + y) + half(cam + y), y);
+  ctx.closePath();
+  const wg = ctx.createLinearGradient(0, 0, W, 0);
+  wg.addColorStop(0, '#2a7f97'); wg.addColorStop(0.5, '#3a9fbc'); wg.addColorStop(1, '#2a7f97');
+  ctx.fillStyle = wg; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 3; ctx.stroke();
+  // 流れの線
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 18; i++) {
+    const wy = Math.floor(cam / 60) * 60 + i * 60 + (i * 37 % 60), y = sy(wy);
+    const c = center(wy), hw = half(wy), x = c + Math.sin(i * 2.3) * hw * 0.7;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(wy / 50) * 3, y + 16); ctx.stroke();
+  }
+  const ky = sy(kyWorld()), under = K.dive > 0;
+  // 水の中のもの
+  for (const o of objs) if (o.layer === 'under' || o.type === 'whirl') drawObj(o, sy(o.y), now, under);
+  if (under) drawKappa(K.x, ky, true, now);
+  // 水面のもの
+  for (const o of objs) if (o.layer === 'surface' || o.layer === 'both') if (o.type !== 'whirl' && o.type !== 'heron') drawObj(o, sy(o.y), now, under);
+  if (!under) drawKappa(K.x, ky, false, now);
+  for (const o of objs) if (o.type === 'heron') drawObj(o, sy(o.y), now, under);
+  // しぶき
+  for (const p of parts) { ctx.globalAlpha = Math.min(1, p.life * 2.5); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, sy(p.y), 2.5, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center';
+  for (const p of pops) {
+    ctx.globalAlpha = Math.min(1, p.t * 2.5); ctx.font = '800 14px "M PLUS Rounded 1c", sans-serif';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(31,45,36,.6)'; ctx.strokeText(p.text, p.x, sy(p.y));
+    ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, sy(p.y));
+  }
+  ctx.globalAlpha = 1;
+  // 区間の看板
+  const m = cam / 10;
+  for (const [mm, name] of [[250, '田んぼ'], [600, '町']]) {
+    const y = sy(mm * 10 + H * KY);
+    if (y > -30 && y < H + 30) {
+      ctx.fillStyle = 'rgba(255,253,244,.92)'; ctx.fillRect(W / 2 - 60, y - 14, 120, 28);
+      ctx.strokeStyle = '#1f2d24'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 60, y - 14, 120, 28);
+      ctx.fillStyle = '#1f2d24'; ctx.font = '500 14px "Kiwi Maru", serif'; ctx.fillText(`ここから${name}`, W / 2, y + 5);
+    }
+  }
+  if (K.water < 25 && state === 'play' && !G.over && Math.floor(now / 250) % 2) {
+    ctx.fillStyle = 'rgba(226,75,59,.85)'; ctx.font = '800 13px "M PLUS Rounded 1c", sans-serif'; ctx.fillText('皿がかわく！ もぐって！', W / 2, H - 16);
+  }
+}
+function drawObj(o, y, now, kappaUnder) {
+  const dim = (o.layer === 'under') ? (kappaUnder ? 0.95 : 0.4) : (kappaUnder && o.layer === 'surface' ? 0.55 : 1);
+  ctx.save(); ctx.globalAlpha = dim;
+  switch (o.type) {
+    case 'rock':
+      ctx.fillStyle = '#7d7a72'; ctx.beginPath(); ctx.ellipse(o.x, y, o.r, o.r * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#9a978e'; ctx.beginPath(); ctx.ellipse(o.x - o.r * 0.25, y - o.r * 0.25, o.r * 0.5, o.r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(o.x, y + 3, o.r + 4, o.r * 0.85 + 3, 0, 0.2, Math.PI - 0.2); ctx.stroke();
+      break;
+    case 'log':
+      ctx.translate(o.x, y); ctx.rotate(o.rot);
+      ctx.fillStyle = '#8a5a34'; ctx.beginPath(); ctx.roundRect(-o.w / 2, -o.h / 2, o.w, o.h, 8); ctx.fill();
+      ctx.strokeStyle = '#6a4224'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-o.w / 2 + 10, -2); ctx.lineTo(o.w / 2 - 14, -3); ctx.moveTo(-o.w / 2 + 20, 4); ctx.lineTo(o.w / 2 - 24, 3); ctx.stroke();
+      ctx.fillStyle = '#c69a66'; ctx.beginPath(); ctx.ellipse(o.w / 2 - 3, 0, 4, o.h / 2 - 1, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'cuc':
+      ctx.translate(o.x, y + Math.sin(now / 300 + o.t) * 2); ctx.rotate(0.6);
+      ctx.fillStyle = '#3f8f2a'; ctx.beginPath(); ctx.roundRect(-5, -13, 10, 26, 5); ctx.fill();
+      ctx.fillStyle = '#9ad06a'; ctx.fillRect(-1.5, -10, 3, 20);
+      ctx.fillStyle = '#ffd34a'; ctx.beginPath(); ctx.arc(0, -14, 2.5, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'whirl':
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); for (let a = 0; a < 9; a += 0.2) { const rr = 4 + a * 6.2, aa = a + k * 2.09 - now / 400; ctx.lineTo(o.x + Math.cos(aa) * rr, y + Math.sin(aa) * rr * 0.75); } ctx.stroke(); }
+      ctx.fillStyle = 'rgba(20,60,80,.5)'; ctx.beginPath(); ctx.arc(o.x, y, 10, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'hook': {
+      const c = center(o.y), hw = half(o.y), bx = c + o.side * (hw + 30), hy = y + Math.sin(o.t * 2) * 8;
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, y - 60); ctx.quadraticCurveTo((bx + o.x) / 2, y - 40, o.x, hy - 10); ctx.stroke();
+      ctx.fillStyle = '#e24b3b'; ctx.beginPath(); ctx.arc(o.x, hy - 12, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o.x, hy - 8); ctx.lineTo(o.x, hy + 2); ctx.arc(o.x - 4, hy + 2, 4, 0, Math.PI); ctx.stroke();
+      // 釣り人
+      ctx.globalAlpha = 1; ctx.fillStyle = '#2f4a7a'; ctx.beginPath(); ctx.arc(bx, y - 64, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(bx, y - 72, 6, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, y - 62); ctx.lineTo(bx - o.side * 20, y - 66); ctx.stroke();
+      break; }
+    case 'koi':
+      for (let i = 0; i < o.n; i++) {
+        const fx = o.x + (i % 2) * 22 - 11, fy = y + (i - 1.5) * 16, dir = Math.sign(o.vx);
+        ctx.fillStyle = i % 2 ? '#f08a4b' : '#f4f1ea';
+        ctx.beginPath(); ctx.ellipse(fx, fy, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(fx - dir * 9, fy); ctx.lineTo(fx - dir * 16, fy - 5); ctx.lineTo(fx - dir * 16, fy + 5); ctx.fill();
+        ctx.fillStyle = '#e24b3b'; ctx.beginPath(); ctx.arc(fx + dir * 2, fy - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    case 'canoe':
+      ctx.translate(o.x, y);
+      ctx.fillStyle = '#e8743b'; ctx.beginPath(); ctx.ellipse(0, 0, o.w / 2, o.h / 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd6a8'; ctx.beginPath(); ctx.ellipse(0, 0, o.w / 2 - 8, o.h / 2 - 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3b6fd1'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 3; const pa = Math.sin(now / 200) * 0.6; ctx.beginPath(); ctx.moveTo(-Math.cos(pa) * 24, -Math.sin(pa) * 24); ctx.lineTo(Math.cos(pa) * 24, Math.sin(pa) * 24); ctx.stroke();
+      break;
+    case 'bottle':
+      ctx.translate(o.x, y); ctx.rotate(o.t);
+      ctx.fillStyle = 'rgba(220,240,255,.9)'; ctx.beginPath(); ctx.roundRect(-5, -10, 10, 18, 3); ctx.fill();
+      ctx.fillStyle = '#3b8fd1'; ctx.fillRect(-3, -14, 6, 4); ctx.fillStyle = '#e24b3b'; ctx.fillRect(-5, -3, 10, 5);
+      break;
+    case 'net':
+      ctx.strokeStyle = 'rgba(240,240,230,.85)'; ctx.lineWidth = 1;
+      for (let i = -o.w / 2; i <= o.w / 2; i += 8) { ctx.beginPath(); ctx.moveTo(o.x + i, y - o.h / 2); ctx.lineTo(o.x + i + 6, y + o.h / 2); ctx.moveTo(o.x + i + 6, y - o.h / 2); ctx.lineTo(o.x + i, y + o.h / 2); ctx.stroke(); }
+      ctx.fillStyle = '#f2c94c'; for (let i = -o.w / 2; i <= o.w / 2; i += 24) { ctx.beginPath(); ctx.arc(o.x + i, y - o.h / 2, 3, 0, Math.PI * 2); ctx.fill(); }
+      break;
+    case 'heron': {
+      ctx.globalAlpha = 1;
+      if (o.t < 1.0) {
+        const k = o.t;
+        ctx.fillStyle = `rgba(20,30,40,${0.15 + k * 0.3})`; ctx.beginPath(); ctx.ellipse(o.x, y, 14 + k * 14, 8 + k * 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e24b3b'; ctx.font = '800 16px "M PLUS Rounded 1c", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('！', o.x, y - 24);
+      } else {
+        const k = Math.min(1, (o.t - 1.0) / 0.12);
+        ctx.fillStyle = '#f4f6f8'; ctx.beginPath(); ctx.ellipse(o.x, y - 30 + 20 * k, 16, 9, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(o.x + 10, y - 44 + 26 * k, 5, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#f2b134'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(o.x + 12, y - 42 + 26 * k); ctx.lineTo(o.x + 4, y - 20 + 26 * k); ctx.stroke();
+        ctx.fillStyle = '#1f2d24'; ctx.font = '800 14px "M PLUS Rounded 1c", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('ツンッ', o.x + 34, y - 30);
+      }
+      break; }
+  }
+  ctx.restore();
+}
+function drawKappa(x, y, under, now) {
+  ctx.save(); ctx.translate(x, y);
+  if (K.inv > 0 && Math.floor(now / 80) % 2) ctx.globalAlpha = 0.4;
+  if (under) {
+    ctx.globalAlpha *= 0.75; ctx.scale(0.85, 0.85);
+    // 泡
+    for (let i = 0; i < 3; i++) { const t = (now / 500 + i / 3) % 1; ctx.strokeStyle = `rgba(255,255,255,${1 - t})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(Math.sin(i * 2 + now / 300) * 8, -16 - t * 22, 2 + i, 0, Math.PI * 2); ctx.stroke(); }
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 4, 22, 14, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  const sw = reduceMotion ? 0 : Math.sin(K.wob * 8) * 0.25;
+  // 手足
+  ctx.fillStyle = under ? '#3f8a6a' : '#5fae3e';
+  for (const s of [-1, 1]) { ctx.save(); ctx.rotate(s * (0.5 + sw * s)); ctx.beginPath(); ctx.ellipse(s * 14, 8, 4, 9, s * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  // こうら
+  ctx.fillStyle = under ? '#4a6a3a' : '#7a8a3a'; ctx.beginPath(); ctx.ellipse(0, 9, 12, 11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-8, 6); ctx.lineTo(8, 6); ctx.moveTo(-8, 12); ctx.lineTo(8, 12); ctx.moveTo(0, 0); ctx.lineTo(0, 18); ctx.stroke();
+  // 頭
+  ctx.fillStyle = under ? '#3f8a6a' : '#5fae3e'; ctx.beginPath(); ctx.arc(0, -6, 11, 0, Math.PI * 2); ctx.fill();
+  // くちばし
+  ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.ellipse(0, 3, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  // 目
+  ctx.fillStyle = '#1f2d24'; ctx.beginPath(); ctx.arc(-4, -3, 1.6, 0, Math.PI * 2); ctx.arc(4, -3, 1.6, 0, Math.PI * 2); ctx.fill();
+  // 髪
+  ctx.fillStyle = '#2f5a2a'; for (let i = 0; i < 8; i++) { const a = Math.PI + i / 7 * Math.PI; ctx.beginPath(); ctx.arc(Math.cos(a) * 10, -8 + Math.sin(a) * 9, 3, 0, Math.PI * 2); ctx.fill(); }
+  // 皿
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -11, 8, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#1f2d24'; ctx.lineWidth = 1; ctx.stroke();
+  const wl = Math.max(0, K.water / 100);
+  if (wl > 0) { ctx.fillStyle = '#6fd0f0'; ctx.beginPath(); ctx.ellipse(0, -11, 6.5 * wl, 3.2 * wl, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
+// ── HUD ──
+let lastHud = '';
+function hud() {
+  const m = Math.floor(G.camY / 10);
+  const k = `${Math.round(K.water)}|${m}|${G.cuc}|${K.dive > 0}|${K.cool > 0}`;
+  if (k === lastHud) return; lastHud = k;
+  $('plateBar').style.width = Math.max(0, K.water) + '%';
+  $('plateBar').style.background = K.water > 50 ? '#6fd0f0' : K.water > 25 ? '#ffc94a' : '#e24b3b';
+  $('plateLbl').textContent = K.dive > 0 ? '頭の皿の水（もぐって補給中）' : '頭の皿の水';
+  $('dist').textContent = (state === 'play' ? m : 0) + 'm';
+  $('zone').textContent = ZONES[zoneOf(state === 'play' ? m : 0)];
+  $('cuc').textContent = G.cuc;
+  $('diveBtn').classList.toggle('cool', K.dive > 0 || K.cool > 0);
+}
+function gameOver() {
+  state = 'over';
+  const m = Math.floor(G.camY / 10), score = m + G.cuc * 20;
+  if (score > best) { best = score; try { localStorage.setItem('kappa-best', String(best)); } catch(e) {} }
+  $('rDist').textContent = m + 'm';
+  $('rZone').textContent = ZONES[zoneOf(m)];
+  $('rCuc').textContent = G.cuc + '本';
+  $('rScore').textContent = score;
+  $('rBest').textContent = best;
+  $('overTitle').textContent = '皿がかわいた…';
+  $('overOv').hidden = false;
+  setTimeout(() => window.GC && GC.submitScore(score), 1200);
+}
+function start() { newGame(); state = 'play'; lastHud = ''; $('startOv').hidden = true; $('overOv').hidden = true; }
+$('startBtn').onclick = start;
+$('retryBtn').onclick = start;
+
+// ── 入力 ──
+const pointers = new Map(); let dragId = null;
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+  pointers.set(e.pointerId, {t:performance.now(), moved:0, lx:e.clientX});
+  if (dragId === null) dragId = e.pointerId;
+});
+cv.addEventListener('pointermove', e => {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.lx; p.moved += Math.abs(dx); p.lx = e.clientX;
+  if (e.pointerId === dragId && state === 'play') K.tx += dx / cssScale * 1.4;
+});
+function endP(e, isUp) {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  pointers.delete(e.pointerId);
+  if (dragId === e.pointerId) dragId = pointers.size ? pointers.keys().next().value : null;
+  if (isUp && performance.now() - p.t < 250 && p.moved < 10) dive();
+}
+cv.addEventListener('pointerup', e => endP(e, true));
+cv.addEventListener('pointercancel', e => endP(e, false));
+$('diveBtn').addEventListener('pointerdown', e => { e.preventDefault(); dive(); });
+$('diveBtn').addEventListener('keydown', e => { if (e.key === 'Enter') dive(); });
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); if (state === 'play') dive(); else if (!e.repeat) start(); return; }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); keys[e.key] = true; }
+});
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw(now); hud();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

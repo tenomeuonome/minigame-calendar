@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流れ星キャッチ</title>
+<style>
+  body {
+    margin: 0;
+    background: #05061a;
+    color: #eef0ff;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+  h1 { font-size: 20px; margin: 8px 0; }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 800px;
+    max-width: 100%;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  #wrap { position: relative; }
+  canvas { background: radial-gradient(circle at 70% 20%, #1a1d4a, #05061a 70%); border: 3px solid #2e3270; border-radius: 10px; display: block; touch-action: none; cursor: none; }
+  #msg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(0,0,0,0.78); border-radius: 10px; text-align: center;
+  }
+  #msg h2 { font-size: 26px; margin-bottom: 8px; }
+  #msg p { color: #ddd; margin-bottom: 16px; }
+  #msg button { padding: 8px 20px; font-size: 15px; border-radius: 6px; border: none; background: #6a7bff; color: #fff; cursor: pointer; }
+  #help { max-width: 800px; font-size: 13px; color: #a7adda; margin-top: 10px; line-height: 1.7; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>🌠 流れ星キャッチ</h1>
+  <div id="hud">
+    <div>残り時間: <span id="time">45</span>秒</div>
+    <div>キャッチ: 🌟<span id="score">0</span> / 取り逃し: <span id="miss">0</span></div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="800" height="500"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    マウス(またはタッチ)で虫取り網を動かして、流れ星が網に重なった瞬間にクリック/タップでキャッチ。<br>
+    時間がたつほど流れ星のスピードが上がる。
+  </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    net: { x: W/2, y: H/2 },
+    stars: [],
+    stardust: [], // キャッチ時のエフェクト
+    score: 0,
+    miss: 0,
+    timeLeft: 45,
+    spawnTimer: 60,
+    running: true,
+  };
+}
+
+function screenPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: (cx - rect.left) * (W / rect.width), y: (cy - rect.top) * (H / rect.height) };
+}
+
+canvas.addEventListener('mousemove', e => { const p = screenPos(e); state.net.x = p.x; state.net.y = p.y; });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); const p = screenPos(e); state.net.x = p.x; state.net.y = p.y; }, { passive: false });
+canvas.addEventListener('mousedown', trySwing);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); const p = screenPos(e); state.net.x = p.x; state.net.y = p.y; trySwing(); }, { passive: false });
+
+let swingFlash = 0;
+function trySwing() {
+  if (!state.running) return;
+  swingFlash = 10;
+  for (let i = state.stars.length - 1; i >= 0; i--) {
+    const s = state.stars[i];
+    if (Math.hypot(s.x - state.net.x, s.y - state.net.y) < 34) {
+      state.stars.splice(i, 1);
+      state.score++;
+      for (let j = 0; j < 8; j++) {
+        state.stardust.push({ x: s.x, y: s.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, life: 20 });
+      }
+      break;
+    }
+  }
+}
+
+function spawnStar() {
+  const fromLeft = Math.random() < 0.5;
+  const y = Math.random() * H * 0.6;
+  const speed = 3.5 + (45 - state.timeLeft) * 0.06 + Math.random() * 1.5;
+  state.stars.push({
+    x: fromLeft ? -20 : W + 20,
+    y,
+    vx: (fromLeft ? 1 : -1) * speed,
+    vy: speed * 0.45,
+  });
+}
+
+function update() {
+  if (!state.running) return;
+  if (swingFlash > 0) swingFlash--;
+
+  state.spawnTimer--;
+  if (state.spawnTimer <= 0) {
+    spawnStar();
+    state.spawnTimer = Math.max(25, 55 - (45 - state.timeLeft));
+  }
+
+  for (let i = state.stars.length - 1; i >= 0; i--) {
+    const s = state.stars[i];
+    s.x += s.vx; s.y += s.vy;
+    if (s.x < -40 || s.x > W + 40 || s.y > H + 40) {
+      state.stars.splice(i, 1);
+      state.miss++;
+    }
+  }
+
+  for (let i = state.stardust.length - 1; i >= 0; i--) {
+    const d = state.stardust[i];
+    d.x += d.vx; d.y += d.vy; d.life--;
+    if (d.life <= 0) state.stardust.splice(i, 1);
+  }
+
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('miss').textContent = state.miss;
+
+  state.timeLeft -= 1/60;
+  document.getElementById('time').textContent = Math.max(0, Math.ceil(state.timeLeft));
+  if (state.timeLeft <= 0) endGame();
+}
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '✨ おつかれさま';
+  document.getElementById('msgText').textContent = `${state.score}個キャッチ！(取り逃し ${state.miss}個)`;
+  document.getElementById('msg').style.display = 'flex';
+  const finalScore = state.score;
+  setTimeout(() => window.GC && GC.submitScore(finalScore), 1200);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // 流れ星(尾を引く線 + 本体)
+  for (const s of state.stars) {
+    const tailLen = 9;
+    const grad = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * tailLen, s.y - s.vy * tailLen);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x - s.vx * tailLen, s.y - s.vy * tailLen);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  }
+
+  // キャッチエフェクト
+  for (const d of state.stardust) {
+    ctx.globalAlpha = Math.max(0, d.life / 20);
+    ctx.fillStyle = '#ffe79a';
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // 虫取り網
+  ctx.save();
+  ctx.translate(state.net.x, state.net.y);
+  ctx.strokeStyle = swingFlash > 0 ? '#ffe79a' : '#9fb0ff';
+  ctx.lineWidth = swingFlash > 0 ? 4 : 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, 30, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#6a7bff';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(21, 21);
+  ctx.lineTo(45, 45);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+resetGame();
+loop();
+</script>
+</body>
+</html>

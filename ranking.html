@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ランキング | GameCenterEG</title>
+<style>
+  :root { --bg: #12121c; --panel: #1d1d2e; --ink: #f1f0fa; --muted: #9a98b5; --accent: #8b7bff; --gold: #ffd25e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif; padding: 20px 16px 60px; }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  .back { color: var(--muted); font-size: 13px; text-decoration: none; }
+  h1 { font-size: 20px; margin: 14px 0 4px; line-height: 1.4; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .play { display: inline-block; background: var(--gold); color: #2a2100; font-weight: 800; text-decoration: none; border-radius: 999px; padding: 9px 20px; margin-bottom: 16px; }
+  ol { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; gap: 10px; align-items: center; background: var(--panel); border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  li .r { width: 2.6em; font-weight: 900; color: var(--accent); }
+  li:nth-child(1) .r { color: var(--gold); }
+  li .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li .s { font-weight: 700; }
+  li.me { outline: 2px solid var(--gold); }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← GameCenterEG にもどる</a>
+  <div id="main"><p class="empty">読み込み中…</p></div>
+</div>
+<script>
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (v, sc) => {
+  const d = sc?.decimals ?? (Number.isInteger(v) ? 0 : 2);
+  return Number(v).toLocaleString('ja-JP', { minimumFractionDigits: d, maximumFractionDigits: d }) + (sc?.unit ?? '点');
+};
+(async () => {
+  const slug = new URLSearchParams(location.search).get('game') || '';
+  const main = document.getElementById('main');
+  const [rk, gl] = await Promise.all([
+    fetch('/api/ranking?game=' + encodeURIComponent(slug)).then(r => r.ok ? r.json() : null),
+    fetch('/api/games').then(r => r.json()),
+  ]).catch(() => [null, null]);
+  const g = gl?.games.find(x => x.slug === slug);
+  if (!rk || !g) { main.innerHTML = '<p class="empty">このゲームのランキングは見つからなかった</p>'; return; }
+  let me = ''; try { me = localStorage.getItem('gc-name') || ''; } catch (e) {}
+  document.title = `${g.title} ランキング | GameCenterEG`;
+  main.innerHTML = `<h1>🏆 ${esc(g.title)}</h1>
+    <p class="sub">${esc(g.score?.label || '')}${g.score?.label ? ' · ' : ''}${g.score?.order === 'asc' ? '小さいほど上位' : '大きいほど上位'} · 👀 ${g.plays.toLocaleString()}回あそばれた</p>
+    <a class="play" href="${esc(g.href)}">▶ あそぶ</a>
+    ${rk.ranking.length ? '<ol>' + rk.ranking.map(r => `<li class="${r.name === me ? 'me' : ''}"><span class="r">${r.rank}位</span><span class="n">${esc(r.name)}</span><span class="s">${fmt(r.score, rk.score)}</span></li>`).join('') + '</ol>'
+      : '<p class="empty">まだだれも登録していないよ。一番乗りしよう</p>'}`;
+})();
+</script>
+</body>
+</html>

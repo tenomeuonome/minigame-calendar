@@ -1,0 +1,403 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>うらめし肝試し</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* 縦一画面：上にHUD、中央に夜の墓地マップ、下に「うらめしや」ボタン。夜の墨色に鬼火の青と提灯の黄 */
+:root{
+  --ink:#0b0d12; --panel:#151a24; --line:#262d3b; --paper:#ece5d3; --dim:#8a8f9e;
+  --onibi:#86dcff; --lantern:#ffcf6b; --blood:#e5484d;
+  --f-display:"Yuji Syuku","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--paper);font-family:var(--f-body);overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:540px;margin:0 auto;display:flex;flex-direction:column;gap:8px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.souls{display:flex;gap:6px;align-items:center}
+.soul{width:14px;height:14px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--onibi);box-shadow:0 0 10px var(--onibi);transition:opacity .3s}
+.soul.off{opacity:.15;box-shadow:none}
+.meter{display:flex;flex-direction:column;gap:3px;min-width:0}
+.meter span{font-size:11px;letter-spacing:.12em;color:var(--dim)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--onibi);transition:background .2s}
+.score{text-align:right;font-variant-numeric:tabular-nums;line-height:1.1}
+.score b{font-family:var(--f-display);font-size:24px;font-weight:400;color:var(--lantern)}
+.score small{display:block;font-size:11px;color:var(--dim);letter-spacing:.08em}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+canvas{display:block;border-radius:6px;touch-action:none;box-shadow:0 0 0 1px var(--line)}
+.controls{display:flex;gap:12px;align-items:center}
+.hint{flex:1;font-size:12px;color:var(--dim);line-height:1.5;min-width:0}
+#scareBtn{font-family:var(--f-display);font-size:22px;color:var(--ink);background:var(--onibi);border:0;border-radius:999px;
+  padding:12px 26px;cursor:pointer;box-shadow:0 0 18px rgba(134,220,255,.45);touch-action:manipulation;transition:transform .08s,opacity .2s}
+#scareBtn:active{transform:scale(.94)}
+#scareBtn.cool{opacity:.45;box-shadow:none}
+button:focus-visible{outline:2px solid var(--lantern);outline-offset:3px}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,8,12,.82);border-radius:6px;padding:16px;box-sizing:border-box}
+.card{max-width:320px;display:flex;flex-direction:column;gap:14px}
+.card h1{font-family:var(--f-display);font-weight:400;font-size:40px;margin:0;color:var(--paper);text-wrap:balance;text-shadow:0 0 18px rgba(134,220,255,.35)}
+.card p{margin:0;font-size:13px;line-height:1.75;color:var(--paper)}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.75;display:flex;flex-direction:column;gap:4px}
+.card li::marker{color:var(--onibi)}
+.card em{font-style:normal;color:var(--lantern)}
+.result{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;font-variant-numeric:tabular-nums}
+.result dt{color:var(--dim)} .result dd{margin:0;text-align:right}
+.go{font-family:var(--f-display);font-size:20px;background:var(--lantern);color:var(--ink);border:0;border-radius:999px;padding:10px 24px;cursor:pointer;align-self:flex-start}
+</style>
+
+<div class="app">
+  <div class="hud">
+    <div class="souls" id="souls" aria-label="残りの魂"></div>
+    <div class="meter"><span>気配（照らされると溜まる）</span><div class="bar"><i id="expBar"></i></div></div>
+    <div class="score"><b id="score">0</b><small id="best">最高 0</small></div>
+  </div>
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="夜の墓地のマップ"></canvas>
+    <div class="overlay" id="startOv">
+      <div class="card">
+        <h1>うらめし肝試し</h1>
+        <p>今夜も墓地に肝試しの客がやって来る。あなたはこの墓地の幽霊。祠にたどり着かれる前に、全員追い返そう。</p>
+        <ul>
+          <li>画面をドラッグ（または矢印キー）で移動。墓石も木もすり抜けられる。</li>
+          <li>懐中電灯に照らされると<em>気配</em>が溜まり、満タンで見破られて魂がひとつ減る。</li>
+          <li>近づいて「うらめしや」（Space）。<em>背後から</em>だと効果大。驚いた客はすぐ振り向く。</li>
+          <li>恐怖が満タンになった客は逃げ出す。祠まで行かれると魂が減る。</li>
+        </ul>
+        <button class="go" id="startBtn">夜を始める</button>
+      </div>
+    </div>
+    <div class="overlay" id="overOv" hidden>
+      <div class="card">
+        <h1>成仏…</h1>
+        <dl class="result">
+          <dt>恐怖スコア</dt><dd id="rScore">0</dd>
+          <dt>追い返した客</dt><dd id="rFled">0</dd>
+          <dt>最高スコア</dt><dd id="rBest">0</dd>
+        </dl>
+        <button class="go" id="retryBtn">もう一晩</button>
+      </div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="hint">ドラッグで移動 ／ 矢印キー＋Space</div>
+    <button id="scareBtn">うらめしや</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const W = 360, H = 600;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const dark = document.createElement('canvas'), dctx = dark.getContext('2d');
+const stage = document.getElementById('stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const C = { ink:'#0b0d12', paper:'#ece5d3', dim:'#8a8f9e', onibi:'#86dcff', lantern:'#ffcf6b', blood:'#e5484d' };
+let scale = 1;
+
+function resize() {
+  const s = stage.getBoundingClientRect();
+  const f = Math.max(0.1, Math.min(s.width / W, s.height / H));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.style.width = W * f + 'px'; cv.style.height = H * f + 'px';
+  cv.width = dark.width = Math.round(W * f * dpr);
+  cv.height = dark.height = Math.round(H * f * dpr);
+  scale = f * dpr;
+}
+addEventListener('resize', resize);
+
+// ── 参道（客が歩く道） ──
+const PATH = [[40,588],[40,480],[205,480],[205,390],[78,390],[78,272],[300,272],[300,162],[150,162],[150,62],[318,52]];
+const segs = []; let total = 0;
+for (let i = 0; i < PATH.length - 1; i++) {
+  const [x1,y1] = PATH[i], [x2,y2] = PATH[i+1], len = Math.hypot(x2-x1, y2-y1);
+  segs.push({x1,y1,x2,y2,len,a:Math.atan2(y2-y1,x2-x1),start:total}); total += len;
+}
+function at(d) {
+  d = Math.max(0, Math.min(total, d));
+  let s = segs[segs.length-1];
+  for (const g of segs) if (d <= g.start + g.len) { s = g; break; }
+  const t = (d - s.start) / s.len;
+  return { x: s.x1 + (s.x2-s.x1)*t, y: s.y1 + (s.y2-s.y1)*t, a: s.a };
+}
+const angDiff = (a, b) => Math.atan2(Math.sin(b-a), Math.cos(b-a));
+function distSeg(px,py,s){const dx=s.x2-s.x1,dy=s.y2-s.y1;let t=((px-s.x1)*dx+(py-s.y1)*dy)/(s.len*s.len);t=Math.max(0,Math.min(1,t));return Math.hypot(px-s.x1-dx*t,py-s.y1-dy*t);}
+
+// ── 墓石と木（固定シードで配置） ──
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const decor = [];
+for (let tries = 0; decor.length < 30 && tries < 600; tries++) {
+  const x = 14 + rnd()*(W-28), y = 20 + rnd()*(H-50);
+  if (Math.min(...segs.map(s => distSeg(x,y,s))) < 30) continue;
+  if (decor.some(o => Math.hypot(o.x-x,o.y-y) < 30)) continue;
+  decor.push({x, y, tree: rnd() < 0.35, h: 12 + rnd()*8, tilt: (rnd()-.5)*0.25});
+}
+
+const TYPES = [
+  {name:'大学生', speed:30, r:150, half:0.6,  mult:1.0,  color:'#ffd27a'},
+  {name:'子ども', speed:36, r:110, half:0.6,  mult:1.5,  color:'#9fd4ff'},
+  {name:'カップル', speed:22, r:140, half:0.75, mult:0.9, color:'#ffb3c1'},
+  {name:'配信者', speed:18, r:200, half:0.45, mult:0.75, color:'#b6f0a0'},
+];
+
+let G, visitors, popups, score, fled, souls, T, spawnT, state = 'title', hurt = 0, sent = false;
+let best = 0; try { best = +localStorage.getItem('urameshi-best') || 0; } catch(e) {}
+
+function reset() {
+  G = {x:250, y:420, tx:250, ty:420, exp:0, cd:0, anim:0, inv:0};
+  visitors = []; popups = []; score = 0; fled = 0; souls = 3; T = 0; spawnT = 1; hurt = 0; sent = false;
+  renderSouls();
+}
+function spawn() {
+  const pool = T < 25 ? TYPES.slice(0,2) : T < 60 ? TYPES.slice(0,3) : TYPES;
+  const type = pool[Math.floor(Math.random()*pool.length)];
+  visitors.push({type, d:0, fear:0, flee:false, look:0, lookTarget:0, lookT:2, whip:0, shake:0, baseFace:-Math.PI/2, face:-Math.PI/2, x:PATH[0][0], y:PATH[0][1]});
+}
+function inLight(v, px, py) {
+  const dx = px - v.x, dy = py - v.y, d = Math.hypot(dx, dy);
+  if (d > v.type.r) return false;
+  if (d < 16) return true;
+  return Math.abs(angDiff(v.face, Math.atan2(dy, dx))) < v.type.half;
+}
+function popup(x, y, text, color) { popups.push({x, y, text, color, t:1.1}); }
+function loseSoul(x, y, text) {
+  souls--; hurt = 0.5; popup(x, y, text, C.blood); renderSouls();
+  if (souls <= 0) gameOver();
+}
+
+function scare() {
+  if (state !== 'play' || G.cd > 0) return;
+  G.cd = 0.9; G.anim = 0.35;
+  let hits = 0, gained = 0, runaways = 0;
+  for (const v of visitors) {
+    if (v.flee) continue;
+    const d = Math.hypot(G.x - v.x, G.y - v.y);
+    if (d > 85) continue;
+    const lit = inLight(v, G.x, G.y);
+    let amt, label;
+    if (lit) { amt = 8; label = '…見えてるよ'; }
+    else {
+      const back = Math.abs(angDiff(v.face, Math.atan2(G.y-v.y, G.x-v.x))) > 2.0;
+      amt = back ? 55 : 32; label = back ? '背後から！' : 'ひっ！';
+      v.whip = 0.45;
+    }
+    amt *= v.type.mult * (1 + (85 - d) / 85 * 0.3);
+    v.fear += amt; v.shake = 0.4; gained += amt; hits++;
+    popup(v.x, v.y - 30, label, lit ? C.dim : C.paper);
+    if (v.fear >= 100) { v.fear = 100; v.flee = true; v.whip = 0; runaways++; fled++; popup(v.x, v.y - 46, 'ぎゃああ！', C.blood); }
+  }
+  score += Math.round(gained) * (hits > 1 ? 2 : 1) + runaways * 100 + (runaways > 1 ? 150 : 0);
+  if (hits > 1) popup(G.x, G.y - 34, 'まとめて ×2', C.lantern);
+  if (!hits) popup(G.x, G.y - 26, 'うらめしや〜', C.dim);
+}
+
+function update(dt) {
+  if (state !== 'play') return;
+  T += dt; spawnT -= dt;
+  if (spawnT <= 0 && visitors.filter(v => !v.flee).length < 5) { spawn(); spawnT = Math.max(2.8, 6.5 - T * 0.04); }
+
+  // 幽霊の移動
+  const kx = (keys.ArrowRight||keys.d?1:0) - (keys.ArrowLeft||keys.a?1:0);
+  const ky = (keys.ArrowDown||keys.s?1:0) - (keys.ArrowUp||keys.w?1:0);
+  const sp = 150 * dt;
+  if (kx || ky) { const n = Math.hypot(kx, ky); G.x += kx/n*sp; G.y += ky/n*sp; G.tx = G.x; G.ty = G.y; }
+  else { const dx = G.tx-G.x, dy = G.ty-G.y, d = Math.hypot(dx, dy); if (d > sp) { G.x += dx/d*sp; G.y += dy/d*sp; } else { G.x = G.tx; G.y = G.ty; } }
+  G.x = Math.max(12, Math.min(W-12, G.x)); G.y = Math.max(14, Math.min(H-14, G.y));
+  G.cd = Math.max(0, G.cd - dt); G.anim = Math.max(0, G.anim - dt); G.inv = Math.max(0, G.inv - dt);
+  hurt = Math.max(0, hurt - dt);
+
+  // 客
+  for (const v of visitors) {
+    if (v.flee) { v.d -= v.type.speed * 3.2 * dt; if (v.d <= 0) v.gone = true; }
+    else {
+      v.d += v.type.speed * (1 - v.fear / 250) * dt;
+      v.fear = Math.max(0, v.fear - 2 * dt);
+      if (v.d >= total) { v.gone = true; loseSoul(v.x, v.y + 24, '祠に参られた…'); }
+      v.lookT -= dt;
+      if (v.lookT <= 0) {
+        if (v.lookTarget !== 0) { v.lookTarget = 0; v.lookT = 1.5 + Math.random() * 2.5; }
+        else {
+          const turnBack = Math.random() < 0.15 + v.fear / 200;
+          v.lookTarget = turnBack ? Math.PI * 0.95 * (Math.random() < .5 ? 1 : -1) : (Math.random()*2-1) * 1.1;
+          v.lookT = turnBack ? 0.9 : 0.8 + Math.random();
+        }
+      }
+      if (v.whip > 0) { v.whip -= dt; if (v.whip <= 0) { v.lookTarget = angDiff(v.baseFace, Math.atan2(G.y-v.y, G.x-v.x)); v.lookT = 1.2; } }
+    }
+    v.look += angDiff(v.look, v.flee ? 0 : v.lookTarget) * Math.min(1, dt * 4);
+    const p = at(v.d); v.x = p.x; v.y = p.y;
+    v.baseFace += angDiff(v.baseFace, v.flee ? p.a + Math.PI : p.a) * Math.min(1, dt * 6);
+    v.face = v.baseFace + v.look;
+    v.shake = Math.max(0, v.shake - dt);
+  }
+  visitors = visitors.filter(v => !v.gone);
+  if (state !== 'play') return;
+
+  // 気配
+  const seen = G.inv <= 0 && visitors.some(v => !v.flee && inLight(v, G.x, G.y));
+  G.exp = Math.max(0, Math.min(1, G.exp + (seen ? dt * 0.6 : -dt * 0.3)));
+  if (G.exp >= 1) { G.exp = 0; G.inv = 2; loseSoul(G.x, G.y - 30, '見破られた…'); }
+
+  for (const p of popups) { p.t -= dt; p.y -= 22 * dt; }
+  popups = popups.filter(p => p.t > 0);
+}
+
+// ── 描画 ──
+function draw(now) {
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.fillStyle = '#121620'; ctx.fillRect(0,0,W,H);
+  // 参道
+  ctx.lineJoin = ctx.lineCap = 'round';
+  ctx.strokeStyle = '#2b2720'; ctx.lineWidth = 30; strokePath();
+  ctx.strokeStyle = '#353026'; ctx.lineWidth = 2; ctx.setLineDash([2,9]); strokePath(); ctx.setLineDash([]);
+  // 墓石・木
+  for (const o of decor) {
+    ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.tilt);
+    if (o.tree) { ctx.fillStyle = '#1a2a22'; ctx.beginPath(); ctx.arc(0,0,o.h*0.9,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#22382c'; ctx.beginPath(); ctx.arc(-3,-3,o.h*0.55,0,Math.PI*2); ctx.fill(); }
+    else { ctx.fillStyle = '#4a4f5a'; ctx.fillRect(-6,-o.h,12,o.h); ctx.fillStyle = '#3a3e48'; ctx.fillRect(-9,0,18,4); ctx.fillStyle='#5a606c'; ctx.fillRect(-6,-o.h,12,2); }
+    ctx.restore();
+  }
+  // 鳥居（入口）と祠（ゴール）
+  ctx.fillStyle = '#9c2f2f'; ctx.fillRect(22,568,4,26); ctx.fillRect(54,568,4,26); ctx.fillRect(16,566,48,4); ctx.fillRect(20,574,40,3);
+  ctx.fillStyle = '#5a4632'; ctx.fillRect(310,32,22,18); ctx.fillStyle = '#3a2c20'; ctx.beginPath(); ctx.moveTo(304,34); ctx.lineTo(321,22); ctx.lineTo(338,34); ctx.fill();
+
+  // 客の本体
+  for (const v of visitors) {
+    const sx = v.shake > 0 ? (Math.random()-.5) * 4 : 0;
+    ctx.fillStyle = v.type.color; ctx.beginPath(); ctx.arc(v.x+sx, v.y, 9, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(v.x+sx, v.y); ctx.lineTo(v.x+sx+Math.cos(v.face)*9, v.y+Math.sin(v.face)*9); ctx.stroke();
+  }
+
+  // 闇とライト
+  dctx.setTransform(scale,0,0,scale,0,0);
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0,0,W,H); dctx.fillStyle = 'rgba(3,4,8,0.88)'; dctx.fillRect(0,0,W,H);
+  dctx.globalCompositeOperation = 'destination-out';
+  for (const v of visitors) {
+    const g = dctx.createRadialGradient(v.x,v.y,4,v.x,v.y,v.type.r);
+    g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(0.7,'rgba(0,0,0,.8)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.moveTo(v.x,v.y); dctx.arc(v.x,v.y,v.type.r,v.face-v.type.half,v.face+v.type.half); dctx.closePath(); dctx.fill();
+    const h = dctx.createRadialGradient(v.x,v.y,0,v.x,v.y,24); h.addColorStop(0,'rgba(0,0,0,.9)'); h.addColorStop(1,'rgba(0,0,0,0)');
+    dctx.fillStyle = h; dctx.beginPath(); dctx.arc(v.x,v.y,24,0,Math.PI*2); dctx.fill();
+  }
+  const flick = reduceMotion ? 1 : 0.85 + Math.sin(now/90)*0.08 + Math.random()*0.07;
+  const sg = dctx.createRadialGradient(321,42,0,321,42,46*flick); sg.addColorStop(0,'rgba(0,0,0,.8)'); sg.addColorStop(1,'rgba(0,0,0,0)');
+  dctx.fillStyle = sg; dctx.beginPath(); dctx.arc(321,42,46,0,Math.PI*2); dctx.fill();
+  const tg = dctx.createRadialGradient(40,580,0,40,580,40); tg.addColorStop(0,'rgba(0,0,0,.6)'); tg.addColorStop(1,'rgba(0,0,0,0)');
+  dctx.fillStyle = tg; dctx.beginPath(); dctx.arc(40,580,40,0,Math.PI*2); dctx.fill();
+  ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(dark,0,0); ctx.setTransform(scale,0,0,scale,0,0);
+
+  // ライトの色味
+  ctx.globalCompositeOperation = 'lighter';
+  for (const v of visitors) {
+    ctx.fillStyle = 'rgba(255,220,140,0.07)'; ctx.beginPath(); ctx.moveTo(v.x,v.y); ctx.arc(v.x,v.y,v.type.r,v.face-v.type.half,v.face+v.type.half); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // 恐怖ゲージと名前
+  ctx.font = '9px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center';
+  for (const v of visitors) {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(v.x-14, v.y-21, 28, 4);
+    ctx.fillStyle = v.fear > 70 ? C.blood : C.lantern; ctx.fillRect(v.x-14, v.y-21, 28*v.fear/100, 4);
+    ctx.fillStyle = v.flee ? C.blood : C.dim; ctx.fillText(v.flee ? '逃走中' : v.type.name, v.x, v.y-25);
+  }
+
+  drawGhost(now);
+
+  // ポップアップ
+  ctx.font = '14px "Yuji Syuku", serif';
+  for (const p of popups) { ctx.globalAlpha = Math.min(1, p.t * 2); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y); }
+  ctx.globalAlpha = 1;
+  if (hurt > 0) { ctx.fillStyle = `rgba(229,72,77,${hurt*0.5})`; ctx.fillRect(0,0,W,H); }
+}
+function strokePath() { ctx.beginPath(); ctx.moveTo(...PATH[0]); for (const p of PATH.slice(1)) ctx.lineTo(...p); ctx.stroke(); }
+
+function drawGhost(now) {
+  const lit = state === 'play' && visitors.some(v => !v.flee && inLight(v, G.x, G.y));
+  const bob = reduceMotion ? 0 : Math.sin(now / 300) * 2;
+  const s = 1 + (G.anim > 0 ? Math.sin(G.anim / 0.35 * Math.PI) * 0.7 : 0);
+  ctx.save(); ctx.translate(G.x, G.y + bob); ctx.scale(s, s);
+  ctx.globalAlpha = G.inv > 0 ? 0.25 + 0.25 * Math.sin(now / 60) : lit ? 0.95 : 0.6;
+  ctx.shadowColor = C.onibi; ctx.shadowBlur = lit ? 4 : 14;
+  ctx.fillStyle = '#e9f6ff';
+  ctx.beginPath(); ctx.arc(0,-4,12,Math.PI,0);
+  const w = reduceMotion ? 0 : now / 150;
+  ctx.lineTo(12,12);
+  for (let i = 0; i <= 4; i++) { const x = 12 - i*6; ctx.lineTo(x, 12 + (i%2 ? 4 : 0) + Math.sin(w+i)*1.5); }
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = C.ink;
+  ctx.beginPath(); ctx.arc(-4,-4,2,0,Math.PI*2); ctx.arc(4,-4,2,0,Math.PI*2); ctx.fill();
+  if (G.anim > 0) { ctx.beginPath(); ctx.ellipse(0,3,3,4,0,0,Math.PI*2); ctx.fill(); }
+  ctx.restore();
+  // 気配リング
+  if (G.exp > 0) { ctx.strokeStyle = C.blood; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(G.x, G.y+bob, 20, -Math.PI/2, -Math.PI/2 + G.exp*Math.PI*2); ctx.stroke(); }
+  // 驚かす範囲
+  if (G.anim > 0) { ctx.strokeStyle = `rgba(229,72,77,${G.anim/0.35*0.6})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(G.x, G.y, 85*(1-G.anim/0.35*0.5), 0, Math.PI*2); ctx.stroke(); }
+}
+
+// ── HUD ──
+const soulsEl = document.getElementById('souls'), expBar = document.getElementById('expBar');
+const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best'), scareBtn = document.getElementById('scareBtn');
+function renderSouls() { soulsEl.innerHTML = ''; for (let i = 0; i < 3; i++) { const s = document.createElement('i'); s.className = 'soul' + (i < souls ? '' : ' off'); soulsEl.appendChild(s); } }
+let lastScore = -1;
+function hud() {
+  expBar.style.width = (G.exp * 100) + '%';
+  expBar.style.background = G.exp > 0.6 ? C.blood : C.onibi;
+  if (score !== lastScore) { scoreEl.textContent = score; lastScore = score; }
+  scareBtn.classList.toggle('cool', G.cd > 0);
+}
+bestEl.textContent = '最高 ' + best;
+
+function gameOver() {
+  state = 'over';
+  if (score > best) { best = score; try { localStorage.setItem('urameshi-best', best); } catch(e) {} }
+  bestEl.textContent = '最高 ' + best;
+  document.getElementById('rScore').textContent = score;
+  document.getElementById('rFled').textContent = fled + ' 人';
+  document.getElementById('rBest').textContent = best;
+  document.getElementById('overOv').hidden = false;
+  if (!sent) { sent = true; const s = score; setTimeout(() => window.GC && GC.submitScore(s), 1200); }
+}
+function start() {
+  reset(); state = 'play';
+  document.getElementById('startOv').hidden = true; document.getElementById('overOv').hidden = true;
+}
+document.getElementById('startBtn').onclick = start;
+document.getElementById('retryBtn').onclick = start;
+
+// ── 入力 ──
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); if (state === 'play') scare(); else start(); return; }
+  if (e.key.startsWith('Arrow')) e.preventDefault();
+  keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true;
+});
+addEventListener('keyup', e => { keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
+let dragging = false;
+function toLocal(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
+cv.addEventListener('pointerdown', e => { dragging = true; try { cv.setPointerCapture(e.pointerId); } catch(_) {} const p = toLocal(e); G.tx = p.x; G.ty = p.y; });
+cv.addEventListener('pointermove', e => { if (!dragging) return; const p = toLocal(e); G.tx = p.x; G.ty = p.y; });
+addEventListener('pointerup', () => dragging = false);
+scareBtn.addEventListener('pointerdown', e => { e.preventDefault(); scare(); });
+scareBtn.addEventListener('keydown', e => { if (e.key === 'Enter') scare(); });
+
+// ── ループ ──
+reset();
+// タイトル画面の背景用に客を2組置いておく
+spawn(); visitors[0].d = 260; spawn(); visitors[1].d = 700;
+for (const v of visitors) { const p = at(v.d); v.x = p.x; v.y = p.y; v.baseFace = v.face = p.a; }
+resize();
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw(now); hud();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

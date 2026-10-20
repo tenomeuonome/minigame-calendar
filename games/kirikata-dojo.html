@@ -1,0 +1,421 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>切り方道場</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Mai&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* 台所のまな板、明るい木と生成りで一つの見た目に固定：上にお題（料理名・工程・残り回数）、中央にまな板と定規つきの食材、下に操作 */
+:root{
+  --bg:#f3ede1; --ink:#2b241c; --muted:#7a6e5f; --panel:#fffaf0; --line:#ddd2bf;
+  --wood:#e2c08f; --wood2:#d4ad78; --ai:#2f4f7a; --good:#3f9a5a; --bad:#d4483a; --gold:#c98a1e;
+  --f-display:"Yuji Mai","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:540px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.order{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:end;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--ai);border-radius:10px;padding:8px 12px}
+.order small{font-size:11px;color:var(--muted)}
+.order h2{grid-column:1;margin:0;font-family:var(--f-display);font-weight:400;font-size:24px;line-height:1.2}
+.order .step{grid-column:1/-1;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.order .step b{background:var(--ai);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px}
+.order .left{color:var(--ai);font-weight:700}
+.score{grid-row:1/3;grid-column:2;text-align:right;line-height:1.05}
+.score b{font-family:var(--f-display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.score small{display:block}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+canvas{display:block;touch-action:none;border-radius:12px}
+.bar{display:flex;gap:8px;align-items:center}
+.bar p{flex:1;margin:0;font-size:12px;color:var(--muted);line-height:1.5;min-width:0}
+.btn{font-family:var(--f-body);font-weight:700;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:8px 14px;cursor:pointer}
+.btn:focus-visible,.go:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(243,237,225,.94);border-radius:12px;padding:16px;box-sizing:border-box;overflow-y:auto}
+.card{max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--f-display);font-weight:400;font-size:42px;margin:0;line-height:1.15}
+.card h3{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0}
+.card p{margin:0;font-size:13px;line-height:1.75}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:3px}
+.card li::marker{color:var(--ai)}
+.menu{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.menu span::before{content:"・";color:var(--ai)}
+.result{display:grid;grid-template-columns:1fr auto;gap:4px 14px;font-size:13px;font-variant-numeric:tabular-nums;margin:0}
+.result dt{color:var(--muted)} .result dd{margin:0;text-align:right}
+.result .tot{font-weight:700;font-size:15px;color:var(--ink)}
+.rank{font-family:var(--f-display);font-size:30px;color:var(--bad);border:3px solid currentColor;border-radius:8px;padding:2px 14px;align-self:center;transform:rotate(-5deg)}
+.go{font-family:var(--f-body);font-weight:700;font-size:16px;background:var(--ai);color:#fff;border:0;border-radius:999px;padding:11px 26px;cursor:pointer;align-self:flex-start}
+</style>
+
+<div class="app">
+  <header class="order">
+    <small id="no">1 / 8 品目</small>
+    <h2 id="dish">きゅうりの輪切り</h2>
+    <div class="score"><b id="score">0</b><small>点</small></div>
+    <div class="step"><b id="stepNo">工程1</b><span id="stepText">1cm幅に輪切り</span><span class="left" id="left">あと7回</span></div>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="まな板と食材"></canvas>
+    <div class="overlay" id="startOv">
+      <div class="card">
+        <h1>切り方道場</h1>
+        <p>和食の基本は切り方から。お題の切り方どおりに、包丁で食材を切ろう。全8品。</p>
+        <ul>
+          <li>食材の<b>端から端まで、スッとなぞる</b>と包丁が入る。</li>
+          <li>定規の目もりを見て、決められた幅でそろえて切る。</li>
+          <li>包丁がななめだと、切れたものの幅がそろわない。</li>
+          <li>切る回数は決まっている。最後まで切ると採点。</li>
+        </ul>
+        <div class="menu">
+          <span>輪切り</span><span>半月切り</span><span>いちょう切り</span><span>さいの目切り</span>
+          <span>くし形切り</span><span>拍子木切り</span><span>短冊切り</span><span>千切り</span>
+        </div>
+        <button class="go" id="startBtn">包丁を持つ</button>
+      </div>
+    </div>
+    <div class="overlay" id="dishOv" hidden>
+      <div class="card">
+        <h3 id="dName"></h3>
+        <p id="dDesc"></p>
+        <dl class="result" id="dRes"></dl>
+        <button class="go" id="nextBtn">次のお題へ</button>
+      </div>
+    </div>
+    <div class="overlay" id="overOv" hidden>
+      <div class="card">
+        <h1>おつかれさま</h1>
+        <div class="rank" id="rank">板前</div>
+        <dl class="result" id="oRes"></dl>
+        <button class="go" id="retryBtn">もう一度修行する</button>
+      </div>
+    </div>
+  </div>
+  <div class="bar">
+    <p>食材の端から端まで、包丁を引くようになぞる</p>
+    <button class="btn" id="redoBtn">この工程をやり直す</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+const W = 360; let H = 560, scale = 1;
+
+// 切り方（寸法は mm、上から見た図として単純化）
+const DISHES = [
+  {name:'きゅうりの輪切り', item:'cucumber', desc:'きゅうりを端から1cm幅の輪に切る、いちばん基本の切り方。',
+    steps:[{axis:'x', L:80, D:30, T:10, text:'端から1cm幅に切る'}]},
+  {name:'大根の半月切り', item:'daikon', desc:'縦半分に切ってから、端から切ると半月の形になる。',
+    steps:[{axis:'y', L:70, D:60, T:30, text:'まず縦半分に切る'}, {axis:'x', L:70, D:30, T:10, text:'端から1cm幅に切る'}]},
+  {name:'にんじんのいちょう切り', item:'carrot', desc:'縦に4等分してから端から切ると、いちょうの葉の形になる。',
+    steps:[{axis:'y', L:50, D:30, T:15, text:'縦半分に切る'}, {axis:'y', L:50, D:15, T:7.5, text:'もう一度縦半分に切る'}, {axis:'x', L:50, D:7.5, T:5, text:'端から5mm幅に切る'}]},
+  {name:'豆腐のさいの目切り', item:'tofu', desc:'みそ汁の具の定番。2cm角のさいころの形にそろえる。',
+    steps:[{axis:'y', L:100, D:40, T:20, text:'横から見て、厚みを半分に', side:true}, {axis:'x', L:100, D:60, T:20, text:'縦に2cm幅に切る'}, {axis:'y', L:100, D:60, T:20, text:'横に2cm幅に切る', keep:true}]},
+  {name:'トマトのくし形切り', item:'tomato', desc:'中心（へた）を通る線で放射状に切り分ける。',
+    steps:[{radial:true, R:36, n:4, text:'へたの中心を通して8等分'}]},
+  {name:'大根の拍子木切り', item:'daikon', desc:'長さ5cm、1cm角の棒。拍子木の形から名前がついた。',
+    steps:[{axis:'x', L:100, D:30, T:50, text:'5cmの長さに切る'}, {axis:'y', L:50, D:30, T:10, text:'1cmの厚さの板に切る'}, {axis:'y', L:50, D:30, T:10, text:'板を寝かせて1cm幅に切る', side:true}]},
+  {name:'にんじんの短冊切り', item:'carrot', desc:'長さ5cm、幅1cmの薄い板。七夕の短冊の形。',
+    steps:[{axis:'x', L:100, D:20, T:50, text:'5cmの長さに切る'}, {axis:'y', L:50, D:20, T:10, text:'1cm幅に切る'}, {axis:'x', L:20, D:50, T:2.5, text:'寝かせて端から薄く（2〜3mm）'}]},
+  {name:'大根の千切り', item:'daikon', desc:'長さ5cm、細さ2〜3mm。薄切りを重ねて細く切る。',
+    steps:[{axis:'x', L:100, D:30, T:50, text:'5cmの長さに切る'}, {axis:'x', L:20, D:50, T:2.5, text:'縦に薄切り（2〜3mm）'}, {axis:'y', L:30, D:20, T:2.5, text:'重ねて細く切る（2〜3mm）'}]},
+];
+const ITEM = {
+  cucumber:{fill:'#5f9a3a', edge:'#3f7426', flesh:'#cfe6a6', name:'きゅうり'},
+  daikon:{fill:'#f6f3ea', edge:'#cfc8b5', flesh:'#fffdf6', name:'大根'},
+  carrot:{fill:'#ef8a2b', edge:'#c7681a', flesh:'#f7a957', name:'にんじん'},
+  tofu:{fill:'#fbf7ea', edge:'#ddd3b8', flesh:'#fffcf2', name:'豆腐'},
+  tomato:{fill:'#e0412e', edge:'#a92a1c', flesh:'#f26a52', name:'トマト'},
+};
+const need = st => st.radial ? st.n : Math.round((st.axis === 'x' ? st.L : st.D) / st.T) - 1;
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  H = Math.round(Math.max(440, Math.min(720, W * r.height / Math.max(1, r.width))));
+  const f = Math.max(0.1, Math.min(r.width / W, r.height / H));
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.style.width = W * f + 'px'; cv.style.height = H * f + 'px';
+  cv.width = Math.round(W * f * dpr); cv.height = Math.round(H * f * dpr);
+  scale = f * dpr;
+}
+addEventListener('resize', resize);
+
+// ── 状態 ──
+let state = 'title', di = 0, si = 0, cuts = [], keepCuts = [], stepScores = [], dishScores = [], total = 0;
+let swipe = null, evalShow = null, chops = [], msg = null;
+let best = 0; try { best = +localStorage.getItem('kirikata-best') || 0; } catch(e) {}
+const dish = () => DISHES[Math.min(di, DISHES.length - 1)], step = () => dish().steps[si];
+
+function geom(st) {
+  const top = 56, bottom = H - 34;
+  if (st.radial) { const k = Math.min((W - 80) / (st.R * 2), (bottom - top - 20) / (st.R * 2)); return {k, cx:W / 2, cy:(top + bottom) / 2 + 6}; }
+  const k = Math.min((W - 70) / st.L, (bottom - top - 30) / st.D, 14);
+  const w = st.L * k, h = st.D * k;
+  return {k, ox:(W - w) / 2 + 8, oy:top + (bottom - top - h) / 2 + 8, w, h};
+}
+const toMM = (g, x, y) => ({x:(x - g.ox) / g.k, y:(y - g.oy) / g.k});
+
+// ── 切る ──
+function tryCut(p1, p2) {
+  const st = step(), g = geom(st);
+  if (st.radial) {
+    const a = {x:(p1.x - g.cx) / g.k, y:(p1.y - g.cy) / g.k}, b = {x:(p2.x - g.cx) / g.k, y:(p2.y - g.cy) / g.k};
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < st.R * 1.4) return say('端から端まで切ろう', '#d4483a');
+    const dx = (b.x - a.x) / len, dy = (b.y - a.y) / len;
+    const dist = Math.abs(a.x * dy - a.y * dx);
+    let ang = Math.atan2(dy, dx) * 180 / Math.PI; ang = ((ang % 180) + 180) % 180;
+    cuts.push({ang, dist, a, b});
+    chop((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+  } else {
+    const a = toMM(g, p1.x, p1.y), b = toMM(g, p2.x, p2.y);
+    if (st.axis === 'x') {
+      const dy = b.y - a.y;
+      if (Math.abs(dy) < st.D * 0.7) return say('食材の端から端までなぞろう', '#d4483a');
+      const xa = a.x + (0 - a.y) * (b.x - a.x) / dy, xb = a.x + (st.D - a.y) * (b.x - a.x) / dy;
+      if (Math.min(xa, xb) <= 0.3 || Math.max(xa, xb) >= st.L - 0.3) return say('食材の外を切ってしまった', '#d4483a');
+      cuts.push({t:xa, u:xb});
+    } else {
+      const dx = b.x - a.x;
+      if (Math.abs(dx) < st.L * 0.7) return say('食材の端から端までなぞろう', '#d4483a');
+      const ya = a.y + (0 - a.x) * (b.y - a.y) / dx, yb = a.y + (st.L - a.x) * (b.y - a.y) / dx;
+      if (Math.min(ya, yb) <= 0.3 || Math.max(ya, yb) >= st.D - 0.3) return say('食材の外を切ってしまった', '#d4483a');
+      cuts.push({t:ya, u:yb});
+    }
+    chop((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+  }
+  if (cuts.length >= need(st)) setTimeout(finishStep, 250);
+  hud();
+}
+function chop(x, y) { chops.push({x, y, t:0.5, text:cuts.length % 2 ? 'トン' : 'トン'}); }
+function say(text, color) { msg = {text, color, t:1.4}; }
+
+function finishStep() {
+  const st = step();
+  let sc, pieces = [];
+  if (st.radial) {
+    const angs = cuts.map(c => c.ang).sort((a, b) => a - b), tgt = 180 / st.n;
+    const gaps = angs.map((a, i) => (i < angs.length - 1 ? angs[i + 1] : angs[0] + 180) - a);
+    const gs = gaps.map(g => Math.max(0, 1 - 1.6 * Math.abs(g - tgt) / tgt));
+    const off = cuts.reduce((s, c) => s + c.dist, 0) / cuts.length;
+    const cs = Math.max(0, 1 - off / (st.R * 0.35));
+    sc = Math.round(100 * (gs.reduce((a, b) => a + b, 0) / gs.length) * (0.4 + 0.6 * cs));
+  } else {
+    const len = st.axis === 'x' ? st.L : st.D;
+    const s = cuts.slice().sort((a, b) => (a.t + a.u) - (b.t + b.u));
+    const tb = [0, ...s.map(c => c.t), len], ub = [0, ...s.map(c => c.u), len];
+    const scores = [];
+    for (let i = 0; i < tb.length - 1; i++) {
+      const w1 = tb[i + 1] - tb[i], w2 = ub[i + 1] - ub[i];
+      const e = (Math.abs(w1 - st.T) + Math.abs(w2 - st.T)) / (2 * st.T);
+      const p = Math.max(0, 1 - 1.6 * e);
+      scores.push(p); pieces.push({t0:tb[i], t1:tb[i + 1], u0:ub[i], u1:ub[i + 1], p, w:(w1 + w2) / 2});
+    }
+    sc = Math.round(100 * scores.reduce((a, b) => a + b, 0) / scores.length);
+  }
+  stepScores.push(sc);
+  evalShow = {pieces, sc, t:1.6};
+  const word = sc >= 92 ? 'おみごと！' : sc >= 80 ? 'きれい！' : sc >= 60 ? 'まずまず' : 'ふぞろい…';
+  say(`${word} ${sc}点`, sc >= 80 ? '#3f9a5a' : sc >= 60 ? '#c98a1e' : '#d4483a');
+  setTimeout(() => {
+    evalShow = null;
+    const keepNext = dish().steps[si + 1] && dish().steps[si + 1].keep;
+    keepCuts = keepNext ? cuts.map(c => ({...c, axis:st.axis})) : [];
+    cuts = [];
+    if (si + 1 < dish().steps.length) { si++; hud(); }
+    else finishDish();
+  }, 1500);
+}
+function finishDish() {
+  const d = dish(), avg = Math.round(stepScores.reduce((a, b) => a + b, 0) / stepScores.length);
+  dishScores.push(avg); total += avg;
+  $('dName').textContent = d.name;
+  $('dDesc').textContent = d.desc;
+  $('dRes').innerHTML = d.steps.map((s, i) => `<dt>工程${i + 1}　${s.text}</dt><dd>${stepScores[i]}点</dd>`).join('') + `<dt class="tot">この品</dt><dd class="tot">${avg}点</dd>`;
+  $('nextBtn').textContent = di + 1 >= DISHES.length ? '修行の結果を見る' : '次のお題へ';
+  $('dishOv').hidden = false;
+  hud();
+}
+function nextDish() {
+  $('dishOv').hidden = true;
+  di++; si = 0; cuts = []; keepCuts = []; stepScores = [];
+  if (di >= DISHES.length) return endGame();
+  hud();
+}
+function endGame() {
+  state = 'over';
+  const avg = Math.round(total / DISHES.length);
+  if (total > best) { best = total; try { localStorage.setItem('kirikata-best', String(best)); } catch(e) {} }
+  $('rank').textContent = avg >= 92 ? '板前' : avg >= 80 ? '料理上手' : avg >= 60 ? '見習い' : '修行中';
+  $('oRes').innerHTML = DISHES.map((d, i) => `<dt>${d.name}</dt><dd>${dishScores[i]}点</dd>`).join('') +
+    `<dt class="tot">合計（800点満点）</dt><dd class="tot">${total}点</dd><dt>自己ベスト</dt><dd>${best}点</dd>`;
+  $('overOv').hidden = false;
+  const finalTotal = total;
+  setTimeout(() => window.GC && GC.submitScore(finalTotal), 1200);
+}
+function start() {
+  state = 'play'; di = 0; si = 0; cuts = []; keepCuts = []; stepScores = []; dishScores = []; total = 0;
+  $('startOv').hidden = true; $('overOv').hidden = true; $('dishOv').hidden = true;
+  hud();
+}
+$('startBtn').onclick = start;
+$('retryBtn').onclick = start;
+$('nextBtn').onclick = nextDish;
+$('redoBtn').onclick = () => { if (state === 'play' && !evalShow) { cuts = []; hud(); say('この工程をやり直し', '#7a6e5f'); } };
+
+function hud() {
+  const d = dish(), st = step();
+  $('no').textContent = `${di + 1} / ${DISHES.length} 品目`;
+  $('dish').textContent = d.name;
+  $('stepNo').textContent = `工程${si + 1}/${d.steps.length}`;
+  $('stepText').textContent = st.text;
+  $('left').textContent = `あと${Math.max(0, need(st) - cuts.length)}回`;
+  $('score').textContent = total;
+}
+
+// ── 描画 ──
+function draw(now) {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  // まな板
+  ctx.fillStyle = '#e2c08f'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(160,110,60,.18)'; ctx.lineWidth = 1;
+  for (let y = 6; y < H; y += 9) { ctx.beginPath(); ctx.moveTo(0, y); for (let x = 0; x <= W; x += 30) ctx.lineTo(x, y + Math.sin(x / 50 + y) * 2); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(120,80,40,.25)'; ctx.lineWidth = 3; ctx.strokeRect(4, 4, W - 8, H - 8);
+  const st = step(), it = ITEM[dish().item], g = geom(st);
+  if (st.radial) drawTomato(st, g, it);
+  else drawBlock(st, g, it);
+  // 包丁
+  if (swipe) drawKnife(swipe.p1, swipe.p2);
+  ctx.textAlign = 'center';
+  for (const c of chops) { ctx.globalAlpha = Math.min(1, c.t * 3); ctx.fillStyle = '#2b241c'; ctx.font = '700 15px "Zen Kaku Gothic New", sans-serif'; ctx.fillText(c.text, c.x + 24, c.y - 14 - (0.5 - c.t) * 30); }
+  ctx.globalAlpha = 1;
+  if (msg) {
+    ctx.globalAlpha = Math.min(1, msg.t * 2);
+    ctx.fillStyle = 'rgba(255,250,240,.92)'; ctx.beginPath(); ctx.roundRect(W / 2 - 120, 10, 240, 34, 17); ctx.fill();
+    ctx.fillStyle = msg.color; ctx.font = '700 15px "Zen Kaku Gothic New", sans-serif'; ctx.fillText(msg.text, W / 2, 32);
+    ctx.globalAlpha = 1;
+  }
+}
+function drawBlock(st, g, it) {
+  const {ox, oy, w, h, k} = g;
+  // 食材
+  ctx.fillStyle = 'rgba(80,50,20,.18)'; ctx.beginPath(); ctx.roundRect(ox + 4, oy + 5, w, h, 4); ctx.fill();
+  const showFlesh = st.side || (dish().item !== 'tofu' && dish().item !== 'daikon' && h < 14 * k);
+  ctx.fillStyle = it.fill; ctx.beginPath(); ctx.roundRect(ox, oy, w, h, dish().item === 'tofu' ? 2 : Math.min(8, h / 2)); ctx.fill();
+  if (dish().item === 'cucumber') { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let x = ox + 6; x < ox + w; x += 12) for (let y = oy + 5; y < oy + h; y += 9) { ctx.beginPath(); ctx.arc(x + (y % 2) * 4, y, 1.2, 0, Math.PI * 2); ctx.fill(); } }
+  if (dish().item === 'carrot' || dish().item === 'daikon') { ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 1; for (let x = ox + 10; x < ox + w; x += 22) { ctx.beginPath(); ctx.moveTo(x, oy + 2); ctx.lineTo(x + 3, oy + h - 2); ctx.stroke(); } }
+  ctx.strokeStyle = it.edge; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(ox, oy, w, h, dish().item === 'tofu' ? 2 : Math.min(8, h / 2)); ctx.stroke();
+  // 採点表示（ピースの色分け）
+  if (evalShow) {
+    for (const p of evalShow.pieces) {
+      ctx.fillStyle = p.p >= 0.8 ? 'rgba(63,154,90,.35)' : p.p >= 0.5 ? 'rgba(201,138,30,.35)' : 'rgba(212,72,58,.4)';
+      ctx.beginPath();
+      if (st.axis === 'x') { ctx.moveTo(ox + p.t0 * k, oy); ctx.lineTo(ox + p.t1 * k, oy); ctx.lineTo(ox + p.u1 * k, oy + h); ctx.lineTo(ox + p.u0 * k, oy + h); }
+      else { ctx.moveTo(ox, oy + p.t0 * k); ctx.lineTo(ox, oy + p.t1 * k); ctx.lineTo(ox + w, oy + p.u1 * k); ctx.lineTo(ox + w, oy + p.u0 * k); }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#2b241c'; ctx.font = '700 10px "Zen Kaku Gothic New", sans-serif'; ctx.textAlign = 'center';
+      const lbl = p.w >= 10 ? (p.w / 10).toFixed(1) + 'cm' : p.w.toFixed(1) + 'mm';
+      if (st.axis === 'x') { if ((p.t1 - p.t0) * k > 22) ctx.fillText(lbl, ox + (p.t0 + p.t1 + p.u0 + p.u1) / 4 * k, oy + h / 2 + 4); }
+      else if ((p.t1 - p.t0) * k > 12) ctx.fillText(lbl, ox + w / 2, oy + (p.t0 + p.t1 + p.u0 + p.u1) / 4 * k + 4);
+    }
+  }
+  // 切れ目
+  const line = (c, axis, col, wdt) => {
+    ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath();
+    if (axis === 'x') { ctx.moveTo(ox + c.t * k, oy); ctx.lineTo(ox + c.u * k, oy + h); }
+    else { ctx.moveTo(ox, oy + c.t * k); ctx.lineTo(ox + w, oy + c.u * k); }
+    ctx.stroke();
+  };
+  for (const c of keepCuts) line(c, c.axis, 'rgba(60,40,20,.45)', 1.5);
+  for (const c of cuts) line(c, st.axis, 'rgba(60,40,20,.85)', 2);
+  // 定規
+  drawRuler(st, g);
+  // 横から見た図の注記
+  if (st.side) { ctx.fillStyle = '#7a6e5f'; ctx.font = '700 11px "Zen Kaku Gothic New", sans-serif'; ctx.textAlign = 'left'; ctx.fillText('（横から見たところ）', ox, oy + h + 18); }
+}
+function drawRuler(st, g) {
+  const {ox, oy, w, h, k} = g;
+  const len = st.axis === 'x' ? st.L : st.D;
+  const minor = k >= 7 ? 1 : k >= 3 ? 5 : 10;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,253,245,.92)';
+  if (st.axis === 'x') ctx.fillRect(ox - 4, oy - 28, w + 8, 22); else ctx.fillRect(ox - 30, oy - 4, 22, h + 8);
+  ctx.strokeStyle = '#2b241c'; ctx.fillStyle = '#2b241c'; ctx.lineWidth = 1; ctx.font = '9px "Zen Kaku Gothic New", sans-serif'; ctx.textAlign = 'center';
+  for (let mm = 0; mm <= len + 0.001; mm += minor) {
+    const big = Math.abs(mm % 10) < 0.001, mid = Math.abs(mm % 5) < 0.001;
+    const tl = big ? 9 : mid ? 6 : 3;
+    if (st.axis === 'x') { const x = ox + mm * k; ctx.beginPath(); ctx.moveTo(x, oy - 6); ctx.lineTo(x, oy - 6 - tl); ctx.stroke(); if (big && (k * 10 >= 22 || mm % 50 === 0)) ctx.fillText(mm / 10, x, oy - 18); }
+    else { const y = oy + mm * k; ctx.beginPath(); ctx.moveTo(ox - 8, y); ctx.lineTo(ox - 8 - tl, y); ctx.stroke(); if (big && (k * 10 >= 14 || mm % 50 === 0)) { ctx.textAlign = 'right'; ctx.fillText(mm / 10, ox - 19, y + 3); } }
+  }
+  ctx.textAlign = 'left'; ctx.fillStyle = '#7a6e5f';
+  if (st.axis === 'x') ctx.fillText('cm', ox + w + 6, oy - 14); else ctx.fillText('cm', ox - 28, oy - 8);
+  ctx.restore();
+}
+function drawTomato(st, g, it) {
+  const r = st.R * g.k;
+  ctx.fillStyle = 'rgba(80,30,20,.2)'; ctx.beginPath(); ctx.arc(g.cx + 5, g.cy + 6, r, 0, Math.PI * 2); ctx.fill();
+  const tg = ctx.createRadialGradient(g.cx - r * 0.3, g.cy - r * 0.3, r * 0.1, g.cx, g.cy, r);
+  tg.addColorStop(0, '#f26a52'); tg.addColorStop(1, '#c9321f');
+  ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(g.cx, g.cy, r, 0, Math.PI * 2); ctx.fill();
+  // へた
+  ctx.fillStyle = '#3f7a2a';
+  ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, rr = i % 2 ? 6 : 18; ctx.lineTo(g.cx + Math.cos(a) * rr, g.cy + Math.sin(a) * rr); } ctx.closePath(); ctx.fill();
+  const lineCol = evalShow ? (evalShow.sc >= 80 ? '#3f9a5a' : evalShow.sc >= 60 ? '#c98a1e' : '#d4483a') : 'rgba(60,20,10,.85)';
+  ctx.strokeStyle = lineCol; ctx.lineWidth = evalShow ? 3 : 2;
+  for (const c of cuts) {
+    const dx = c.b.x - c.a.x, dy = c.b.y - c.a.y, l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l;
+    // 円との交点まで線を伸ばす
+    const px = c.a.x, py = c.a.y, bq = px * ux + py * uy, cq = px * px + py * py - st.R * st.R, disc = bq * bq - cq;
+    if (disc <= 0) continue;
+    const t1 = -bq - Math.sqrt(disc), t2 = -bq + Math.sqrt(disc);
+    ctx.beginPath(); ctx.moveTo(g.cx + (px + ux * t1) * g.k, g.cy + (py + uy * t1) * g.k); ctx.lineTo(g.cx + (px + ux * t2) * g.k, g.cy + (py + uy * t2) * g.k); ctx.stroke();
+  }
+}
+function drawKnife(p1, p2) {
+  const dx = p2.x - p1.x, dy = p2.y - p1.y, l = Math.hypot(dx, dy);
+  if (l < 4) return;
+  const ux = dx / l, uy = dy / l, nx = -uy, ny = ux;
+  ctx.strokeStyle = 'rgba(47,79,122,.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.setLineDash([]);
+  // 刃（先端が指の位置）
+  const bl = 120, bw = 18;
+  const tip = p2, heel = {x:p2.x - ux * bl, y:p2.y - uy * bl};
+  ctx.fillStyle = 'rgba(205,212,220,.92)'; ctx.strokeStyle = '#6c7682'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(heel.x, heel.y); ctx.lineTo(heel.x + nx * bw, heel.y + ny * bw); ctx.quadraticCurveTo(tip.x - ux * 30 + nx * bw, tip.y - uy * 30 + ny * bw, tip.x, tip.y); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#5a3a22'; ctx.beginPath();
+  ctx.moveTo(heel.x + nx * 4, heel.y + ny * 4); ctx.lineTo(heel.x - ux * 50 + nx * 4, heel.y - uy * 50 + ny * 4); ctx.lineTo(heel.x - ux * 50 + nx * 14, heel.y - uy * 50 + ny * 14); ctx.lineTo(heel.x + nx * 14, heel.y + ny * 14); ctx.fill();
+}
+
+// ── 入力 ──
+function toLocal(e) { const r = cv.getBoundingClientRect(); return {x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H}; }
+cv.addEventListener('pointerdown', e => {
+  if (state !== 'play' || evalShow || !$('dishOv').hidden || swipe) return;
+  e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+  const p = toLocal(e); swipe = {p1:p, p2:p, id:e.pointerId};
+});
+cv.addEventListener('pointermove', e => { if (swipe && e.pointerId === swipe.id) swipe.p2 = toLocal(e); });
+cv.addEventListener('pointerup', e => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const s = swipe; swipe = null;
+  if (Math.hypot(s.p2.x - s.p1.x, s.p2.y - s.p1.y) < 12) return say('スッとなぞって切ろう', '#7a6e5f');
+  tryCut(s.p1, s.p2);
+});
+cv.addEventListener('pointercancel', () => { swipe = null; });
+
+resize(); hud();
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  for (const c of chops) c.t -= dt; chops = chops.filter(c => c.t > 0);
+  if (msg) { msg.t -= dt; if (msg.t <= 0) msg = null; }
+  draw(now);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

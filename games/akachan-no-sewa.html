@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤ちゃんの世話</title>
+<style>
+  body {
+    margin: 0;
+    background: #fff3e6;
+    color: #4a3b2a;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  h1 { font-size: 20px; margin: 8px 0; }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 800px;
+    max-width: 100%;
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+  #wrap { position: relative; max-width: 800px; width: 100%; }
+  #cribs {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .crib {
+    background: #fffaf2;
+    border: 3px solid #e8c9a0;
+    border-radius: 14px;
+    height: 160px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    overflow: hidden;
+  }
+  .crib .baby { font-size: 44px; }
+  .crib .need {
+    position: absolute;
+    top: 8px;
+    font-size: 26px;
+    animation: bob 0.6s infinite alternate;
+  }
+  @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+  .patience-bar {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    right: 8px;
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .patience-fill { height: 100%; background: #6cc070; transition: width 0.1s linear; }
+  .patience-fill.warn { background: #e0a33a; }
+  .patience-fill.danger { background: #d9534f; }
+  #actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  #actions button {
+    font-size: 15px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 2px solid #e8c9a0;
+    background: #fff;
+    cursor: pointer;
+  }
+  #actions button.selected { background: #ffe0b2; border-color: #c87f2a; }
+  #complaints { font-weight: bold; color: #d9534f; }
+  #msg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(0,0,0,0.6); border-radius: 14px; text-align: center; color: #fff;
+  }
+  #msg h2 { font-size: 26px; margin-bottom: 8px; }
+  #msg button { padding: 8px 20px; font-size: 15px; border-radius: 6px; border: none; background: #e8893a; color: #fff; cursor: pointer; margin-top: 8px; }
+  #help { max-width: 800px; font-size: 13px; color: #8a7355; margin-top: 14px; line-height: 1.7; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>👶 赤ちゃんの世話</h1>
+  <div id="hud">
+    <div>スコア: <span id="score">0</span></div>
+    <div>残り時間: <span id="time">60</span>秒</div>
+    <div>クレーム: <span id="complaints">0</span> / 5</div>
+  </div>
+  <div id="wrap">
+    <div id="cribs"></div>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="actions">
+    <button id="btn-soothe" onclick="selectAction('soothe')">🤗 あやす</button>
+    <button id="btn-milk" onclick="selectAction('milk')">🍼 ミルク</button>
+    <button id="btn-diaper" onclick="selectAction('diaper')">🧷 おむつ</button>
+  </div>
+  <div id="help">
+    左のボタンで「やること」を選んでから、泣いている赤ちゃんをタップ。合っていれば対応完了。<br>
+    放っておくとゲージが減って、ゼロになるとクレーム。クレームが5件になるとゲームオーバー。
+  </div>
+
+<script>
+const NEED_ICON = { soothe: '😢', milk: '🍼', diaper: '💧' };
+const CRIB_COUNT = 5;
+const MAX_COMPLAINTS = 5;
+const GAME_SECONDS = 60;
+
+let state = {};
+let selectedAction = null;
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    cribs: Array.from({ length: CRIB_COUNT }, () => ({ need: null, patience: 1, spawnTimer: randSpawn() })),
+    score: 0,
+    complaints: 0,
+    timeLeft: GAME_SECONDS,
+    running: true,
+  };
+  selectedAction = null;
+  render();
+}
+
+function randSpawn() { return 60 + Math.random() * 120; } // フレーム数(約1〜3秒後)
+
+function selectAction(action) {
+  selectedAction = action;
+  ['soothe', 'milk', 'diaper'].forEach(a => {
+    document.getElementById('btn-' + a).classList.toggle('selected', a === action);
+  });
+}
+
+function handleCribClick(i) {
+  const crib = state.cribs[i];
+  if (!crib.need || !selectedAction) return;
+  if (crib.need === selectedAction) {
+    crib.need = null;
+    crib.patience = 1;
+    crib.spawnTimer = randSpawn();
+    state.score += 10;
+  }
+  // 不一致でもペナルティは無し(手際の良さで勝負するゲームなので、誤タップは単に時間の無駄になるだけ)
+}
+
+function update() {
+  if (!state.running) return;
+  state.cribs.forEach((crib) => {
+    if (crib.need) {
+      crib.patience -= (1 + state.score / 200) / 180; // スコアが伸びるほど少し厳しくなる(減り方が速くなる)
+      if (crib.patience <= 0) {
+        crib.need = null;
+        crib.patience = 1;
+        crib.spawnTimer = randSpawn();
+        state.complaints++;
+      }
+    } else {
+      crib.spawnTimer--;
+      if (crib.spawnTimer <= 0) {
+        const needs = ['soothe', 'milk', 'diaper'];
+        crib.need = needs[Math.floor(Math.random() * needs.length)];
+        crib.patience = 1;
+      }
+    }
+  });
+
+  state.timeLeft -= 1 / 60;
+  if (state.complaints >= MAX_COMPLAINTS) return endGame(false);
+  if (state.timeLeft <= 0) return endGame(true);
+
+  render();
+}
+
+function endGame(timeUp) {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = timeUp ? '🎉 お疲れさま！' : '😣 クレーム過多…';
+  document.getElementById('msgText').textContent =
+    `スコア: ${state.score}点 / クレーム: ${state.complaints}件` + (timeUp ? '' : '\nゲームオーバー');
+  document.getElementById('msg').style.display = 'flex';
+  const finalScore = state.score;
+  setTimeout(() => window.GC && GC.submitScore(finalScore), 1200);
+}
+
+function render() {
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('complaints').textContent = state.complaints;
+  document.getElementById('time').textContent = Math.max(0, Math.ceil(state.timeLeft));
+
+  const cribsEl = document.getElementById('cribs');
+  cribsEl.innerHTML = '';
+  state.cribs.forEach((crib, i) => {
+    const el = document.createElement('div');
+    el.className = 'crib';
+    el.onclick = () => handleCribClick(i);
+    let html = '<div class="baby">👶</div>';
+    if (crib.need) {
+      html += `<div class="need">${NEED_ICON[crib.need]}</div>`;
+      const pct = Math.max(0, crib.patience * 100);
+      const cls = pct < 25 ? 'danger' : pct < 55 ? 'warn' : '';
+      html += `<div class="patience-bar"><div class="patience-fill ${cls}" style="width:${pct}%"></div></div>`;
+    }
+    el.innerHTML = html;
+    cribsEl.appendChild(el);
+  });
+}
+
+setInterval(update, 1000 / 60);
+resetGame();
+</script>
+</body>
+</html>

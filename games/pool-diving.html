@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プール飛び込み</title>
+<style>
+  body {
+    margin: 0;
+    background: #0d2b3a;
+    color: #eaf8ff;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  h1 { font-size: 20px; margin: 8px 0; }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 800px;
+    max-width: 100%;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  #wrap { position: relative; }
+  canvas { background: #9fd8e8; border: 3px solid #1a4a5c; border-radius: 10px; display: block; touch-action: none; }
+  #msg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(0,0,0,0.78); border-radius: 10px; text-align: center;
+  }
+  #msg h2 { font-size: 26px; margin-bottom: 6px; }
+  #msg p { color: #ddd; margin-bottom: 14px; white-space: pre-line; }
+  #msg button { padding: 8px 20px; font-size: 15px; border-radius: 6px; border: none; background: #2a9ad6; color: #fff; cursor: pointer; }
+  #help { max-width: 800px; font-size: 13px; color: #a9d4e2; margin-top: 10px; line-height: 1.7; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>🤸 プール飛び込み</h1>
+  <div id="hud">
+    <div>ダイブ: <span id="diveNum">1</span> / 5</div>
+    <div>合計スコア: <span id="total">0</span></div>
+    <div id="status"></div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="800" height="460"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="nextOrRestart()">つづける</button>
+    </div>
+  </div>
+  <div id="help">
+    スペース(またはタップ長押し)で空中スピン。回転数に応じて加点されるが、<b>着水の瞬間は体がまっすぐ(1回転の切れ目)でないと失敗</b>。<br>
+    早めに離して体勢を整えるのがコツ。5回のダイブで合計スコアを競う。
+  </div>
+
+<script>
+const WATER_Y = 400;
+const BOARD_Y = 90;
+const GRAVITY = 0.22;
+const SPIN_SPEED = 11; // 1フレームあたりの回転(度)。空中でスペースを押してる間だけ回る
+const STRAIGHT_TOLERANCE = 22; // 着水時、この角度以内なら「まっすぐ」とみなす
+
+let state = {};
+
+function resetGame() {
+  state = { diveNum: 1, total: 0, phase: 'ready' };
+  startDive();
+}
+
+function startDive() {
+  state.phase = 'air';
+  state.x = 120;
+  state.y = BOARD_Y;
+  state.vy = -8.5;
+  state.angle = 0;
+  state.spinning = false;
+  state.totalRotation = 0;
+  document.getElementById('status').textContent = '';
+  render();
+}
+
+let keyHeld = false;
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); keyHeld = true; } });
+document.addEventListener('keyup', e => { if (e.code === 'Space') keyHeld = false; });
+document.getElementById('game').addEventListener('mousedown', () => keyHeld = true);
+document.addEventListener('mouseup', () => keyHeld = false);
+document.getElementById('game').addEventListener('touchstart', e => { e.preventDefault(); keyHeld = true; }, { passive: false });
+document.addEventListener('touchend', () => keyHeld = false);
+
+function update() {
+  if (state.phase !== 'air') return;
+
+  state.vy += GRAVITY;
+  state.y += state.vy;
+  state.x += 1.1;
+
+  if (keyHeld) {
+    state.angle = (state.angle + SPIN_SPEED) % 360;
+    state.totalRotation += SPIN_SPEED;
+  }
+
+  if (state.y >= WATER_Y) {
+    landDive();
+    return;
+  }
+  render();
+}
+
+function landDive() {
+  state.phase = 'landed';
+  const finalAngle = state.angle % 360;
+  const diffFromStraight = Math.min(finalAngle, 360 - finalAngle);
+  const spins = Math.floor(state.totalRotation / 360);
+  const spinScore = spins * 30;
+  const clean = diffFromStraight <= STRAIGHT_TOLERANCE;
+  const entryScore = clean ? 50 : Math.max(0, 20 - diffFromStraight);
+  const diveScore = spinScore + Math.round(entryScore);
+
+  state.total += diveScore;
+  document.getElementById('total').textContent = state.total;
+
+  const title = clean ? '✨ キレイな着水！' : '💦 乱れた着水…';
+  const detail = `回転: ${spins}回転 (+${spinScore})\n着水姿勢のズレ: ${Math.round(diffFromStraight)}度 (${clean ? 'ボーナス' : '微妙'} +${Math.round(entryScore)})\nこのダイブのスコア: ${diveScore}`;
+
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgText').textContent = detail +
+    (state.diveNum >= 5 ? `\n\n5ダイブ合計: ${state.total}点` : '');
+  document.getElementById('msg').style.display = 'flex';
+  if (state.diveNum >= 5 && !state.submitted) { state.submitted = true; const s = state.total; setTimeout(() => window.GC && GC.submitScore(s), 1200); }
+  render();
+}
+
+function nextOrRestart() {
+  document.getElementById('msg').style.display = 'none';
+  if (state.diveNum >= 5) {
+    resetGame();
+    return;
+  }
+  state.diveNum++;
+  document.getElementById('diveNum').textContent = state.diveNum;
+  startDive();
+}
+
+function draw() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // 空
+  const sky = ctx.createLinearGradient(0, 0, 0, WATER_Y);
+  sky.addColorStop(0, '#bdeeff');
+  sky.addColorStop(1, '#eafcff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, WATER_Y);
+
+  // 水面
+  ctx.fillStyle = '#2a9ad6';
+  ctx.fillRect(0, WATER_Y, W, H - WATER_Y);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  for (let i = 0; i < W; i += 40) ctx.fillRect(i, WATER_Y + 4, 24, 3);
+
+  // 飛び込み台
+  ctx.fillStyle = '#607d8b';
+  ctx.fillRect(40, BOARD_Y + 20, 90, 10);
+  ctx.fillRect(60, BOARD_Y + 30, 16, WATER_Y - BOARD_Y - 10);
+
+  // ダイバー
+  ctx.save();
+  ctx.translate(state.x, Math.min(state.y, WATER_Y));
+  ctx.rotate((state.angle || 0) * Math.PI / 180);
+  ctx.font = '42px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🤸', 0, 0);
+  ctx.restore();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  // 回転中インジケータ
+  if (state.phase === 'air') {
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = '#1a4a5c';
+    ctx.fillText(keyHeld ? '🌀 回転中' : '(スペースで回転)', state.x - 30, state.y - 40);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+resetGame();
+loop();
+</script>
+</body>
+</html>

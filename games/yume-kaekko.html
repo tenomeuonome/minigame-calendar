@@ -1,0 +1,358 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ゆめかえっこ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* 夢の中。悪夢の紫から、入れ替えるほどパステルの朝色へ移る。上にHUD、中央に夢の空間と眠る子、下に入れ替え用の「いいもの」4つ */
+:root{
+  --frame:#1b1430; --panel:#271d45; --line:#3d2f66; --text:#fff6fb; --dim:#b9add8;
+  --pink:#ff9ec7; --sky:#9fd8ff; --sun:#ffd970; --bad:#a77bff;
+  --f-display:"Hachi Maru Pop","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --f-body:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--frame);color:var(--text);font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.night{font-family:var(--f-display);font-size:18px;line-height:1.1}
+.night small{display:block;font-family:var(--f-body);font-size:10px;color:var(--dim)}
+.meters{display:flex;flex-direction:column;gap:4px;min-width:0}
+.meter{display:grid;grid-template-columns:3.6em 1fr;gap:6px;align-items:center;font-size:10px;color:var(--dim)}
+.meter .bar{height:7px;border-radius:4px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0}
+#fearBar{background:var(--bad)} #timeBar{background:var(--sun)}
+.happy{text-align:right;line-height:1.05}
+.happy b{font-family:var(--f-display);font-size:24px;color:var(--pink);font-weight:400;font-variant-numeric:tabular-nums}
+.happy small{display:block;font-size:10px;color:var(--dim)}
+.dream{flex:1;min-height:0;position:relative;border-radius:18px;overflow:hidden;touch-action:none;transition:filter .2s}
+.dream.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+.thing{position:absolute;left:0;top:0;width:58px;height:58px;margin:-29px 0 0 -29px;display:grid;place-items:center;font-size:40px;line-height:1;will-change:transform;pointer-events:none}
+.thing .sh{position:absolute;right:-2px;bottom:-2px;width:20px;height:20px;border-radius:50%;background:#fff;color:#1b1430;font-size:12px;display:grid;place-items:center;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.thing.scary{filter:drop-shadow(0 0 8px rgba(167,123,255,.8))}
+.thing.scary .sh{background:#2b1f4d;color:#fff;border:1.5px solid var(--bad)}
+.thing.scary.target{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 4px var(--sun))}
+.thing.happy{filter:drop-shadow(0 0 6px rgba(255,255,255,.7))}
+.thing.happy .sh{display:none}
+.thing.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(.2) rotate(-40deg)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
+.sleeper{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:150px;height:74px;pointer-events:none}
+.sleeper .bed{position:absolute;inset:auto 0 0 0;height:40px;background:#f4ecff;border-radius:16px 16px 0 0;box-shadow:inset 0 -10px 0 rgba(0,0,0,.08)}
+.sleeper .quilt{position:absolute;left:34px;right:0;bottom:0;height:46px;background:#ff9ec7;border-radius:22px 16px 0 0;background-image:radial-gradient(#ffd970 3px,transparent 3.5px);background-size:16px 16px}
+.sleeper .face{position:absolute;left:2px;bottom:18px;font-size:44px;line-height:1}
+.sleeper .zz{position:absolute;left:46px;top:-18px;font-family:var(--f-display);font-size:16px;color:var(--text);opacity:.8}
+.fx{position:absolute;pointer-events:none;font-family:var(--f-display);font-size:16px;white-space:nowrap;transform:translate(-50%,-50%);animation:fx 1.1s ease-out forwards;
+  color:#fff;text-shadow:0 0 6px rgba(0,0,0,.5);z-index:5}
+@keyframes fx{0%{opacity:0;transform:translate(-50%,-30%)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-160%)}}
+.spark{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--sun);pointer-events:none;animation:spark .6s ease-out forwards}
+@keyframes spark{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){.thing.pop,.dream.shake{animation:none}}
+.drag{position:fixed;left:0;top:0;font-size:44px;pointer-events:none;z-index:20;transform:translate(-50%,-60%);filter:drop-shadow(0 4px 6px rgba(0,0,0,.4))}
+.palette{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.item{appearance:none;border:2px solid var(--line);background:var(--panel);border-radius:16px;padding:6px 2px 4px;color:var(--text);cursor:grab;touch-action:none;
+  display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--f-body);position:relative;min-width:0}
+.item .em{font-size:34px;line-height:1.1}
+.item .nm{font-size:10px;color:var(--dim);white-space:nowrap}
+.item .sh{position:absolute;top:4px;right:6px;font-size:12px;font-weight:700;color:var(--sun)}
+.item.sel{border-color:var(--sun);box-shadow:0 0 0 2px var(--sun) inset}
+.item.no{animation:shake .3s}
+.item:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+.hint{margin:0;font-size:11px;color:var(--dim);text-align:center}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,14,38,.88);z-index:10;overflow-y:auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.card{max-width:350px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--f-display);font-weight:400;font-size:40px;margin:0;line-height:1.15;color:var(--pink)}
+.card h2{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0;color:var(--sun)}
+.card p{margin:0;font-size:13px;line-height:1.75}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:3px}
+.card li::marker{color:var(--pink)}
+.shapes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:12px}
+.shapes div{background:var(--panel);border-radius:10px;padding:6px 8px;line-height:1.5}
+.shapes b{color:var(--sun);margin-right:4px}
+.diary{background:#fff6fb;color:#3a2b55;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.8;
+  background-image:repeating-linear-gradient(transparent 0 calc(1.8em - 1px),#e6d9f2 calc(1.8em - 1px) 1.8em);background-position:0 12px}
+.diary b{font-family:var(--f-display);font-weight:400;display:block;margin-bottom:2px}
+.go{font-family:var(--f-display);font-size:19px;background:var(--pink);color:#2a1a3f;border:0;border-radius:999px;padding:10px 26px;cursor:pointer;align-self:flex-start;box-shadow:0 4px 0 #c46a93}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #c46a93}
+.go:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div class="night" id="night">1日目の夜<small>朝まで</small></div>
+    <div class="meters">
+      <div class="meter"><span>朝まで</span><div class="bar"><i id="timeBar"></i></div></div>
+      <div class="meter"><span>こわさ</span><div class="bar"><i id="fearBar"></i></div></div>
+    </div>
+    <div class="happy"><b id="happy">0</b><small>入れ替えた</small></div>
+  </header>
+  <div class="dream" id="dream">
+    <div class="sleeper"><div class="bed"></div><div class="quilt"></div><div class="face" id="face">😴</div><div class="zz" id="zz">z z</div></div>
+  </div>
+  <div class="palette" id="palette"></div>
+  <p class="hint">下の「いいもの」を、同じ形の印の怖いものへドラッグ（タップ→タップでもOK）</p>
+
+  <div class="overlay" id="startOv">
+    <div class="card">
+      <h1>ゆめかえっこ</h1>
+      <p>ねむっている子が怖い夢を見ている。夢の中では、形が似ているものどうしなら入れ替えられる。怖いものを楽しいものに変えて、朝まで守ってあげよう。</p>
+      <div class="shapes">
+        <div><b>●まる</b>目玉 → 風船</div>
+        <div><b>━ながい</b>ヘビ → にじ</div>
+        <div><b>✶とげ</b>クモ → ひまわり</div>
+        <div><b>☁ふわ</b>おばけ → ひつじ</div>
+      </div>
+      <ul>
+        <li>怖いものは子どもに近づいてくる。たどり着かれると「こわさ」が上がる。</li>
+        <li>こわさが満タンになると飛び起きてしまう。朝まで守れたら次の夜へ。</li>
+        <li>形の印がちがうと入れ替わらない。</li>
+      </ul>
+      <button class="go" id="startBtn">おやすみなさい</button>
+    </div>
+  </div>
+  <div class="overlay" id="endOv" hidden>
+    <div class="card">
+      <h2 id="endTitle">おはよう！</h2>
+      <div class="diary" id="diary"></div>
+      <button class="go" id="endBtn">次の夜へ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const SH = {round:'●', long:'━', spiky:'✶', fluffy:'☁'};
+const SCARY = [
+  {e:'👁️', n:'目玉', s:'round'}, {e:'💣', n:'ばくだん', s:'round'},
+  {e:'🐍', n:'ヘビ', s:'long'}, {e:'🦴', n:'ほね', s:'long'},
+  {e:'🕷️', n:'クモ', s:'spiky'}, {e:'⚡', n:'かみなり', s:'spiky'}, {e:'🦇', n:'コウモリ', s:'spiky'},
+  {e:'👻', n:'おばけ', s:'fluffy'}, {e:'🌫️', n:'くろいきり', s:'fluffy'},
+];
+const HAPPY = [
+  {e:'🎈', n:'風船', s:'round'}, {e:'🍩', n:'ドーナツ', s:'round'}, {e:'🍊', n:'みかん', s:'round'},
+  {e:'🌈', n:'にじ', s:'long'}, {e:'🍡', n:'おだんご', s:'long'}, {e:'🥖', n:'パン', s:'long'},
+  {e:'🌻', n:'ひまわり', s:'spiky'}, {e:'⭐', n:'おほしさま', s:'spiky'}, {e:'🦋', n:'ちょうちょ', s:'spiky'},
+  {e:'🐑', n:'ひつじ', s:'fluffy'}, {e:'☁️', n:'わたぐも', s:'fluffy'}, {e:'🍦', n:'ソフトクリーム', s:'fluffy'},
+];
+const NIGHT_LEN = 45;
+const dream = $('dream'), paletteEl = $('palette');
+
+// 背景色：悪夢 → しあわせ
+const NIGHTMARE = [[26,12,46],[60,20,70]], HAPPYC = [[255,214,232],[190,228,255]];
+const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+
+let state = 'title', N = 1, G, sel = -1, dragging = null, best = 0;
+try { best = +localStorage.getItem('yumekae-best') || 0; } catch(e) {}
+
+function newNight() {
+  G = {t:0, fear:0, scary:[], happy:[], swaps:[], spawnT:1, palette:[]};
+  dream.querySelectorAll('.thing,.fx,.spark').forEach(e => e.remove());
+  for (let i = 0; i < 4; i++) G.palette.push(newItem());
+  renderPalette();
+}
+function size() { return {w:dream.clientWidth, h:dream.clientHeight}; }
+function target() { const {w, h} = size(); return {x:w / 2 - 40, y:h - 44}; }
+
+function newItem() {
+  const shapesOnScreen = G ? [...new Set(G.scary.map(s => s.def.s))] : [];
+  const have = G ? G.palette.filter(Boolean).map(p => p.s) : [];
+  const need = shapesOnScreen.filter(s => !have.includes(s));
+  const s = need.length && Math.random() < 0.75 ? pick(need) : shapesOnScreen.length && Math.random() < 0.5 ? pick(shapesOnScreen) : pick(Object.keys(SH));
+  return pick(HAPPY.filter(h => h.s === s));
+}
+function makeEl(def, cls) {
+  const el = document.createElement('div'); el.className = 'thing ' + cls;
+  el.innerHTML = `${def.e}<span class="sh">${SH[def.s]}</span>`;
+  dream.appendChild(el); return el;
+}
+function spawnScary() {
+  const {w, h} = size();
+  const pool = SCARY.slice(0, Math.min(SCARY.length, 5 + N * 2));
+  const def = pick(pool);
+  const side = Math.random();
+  const x = side < 0.33 ? -20 : side < 0.66 ? w + 20 : rand(30, w - 30);
+  const y = side < 0.66 ? rand(20, h * 0.55) : -20;
+  const s = {def, x, y, ph:Math.random() * 6, sp:rand(18, 26) + N * 4, el:makeEl(def, 'scary')};
+  G.scary.push(s);
+}
+function fx(x, y, text) { const el = document.createElement('div'); el.className = 'fx'; el.textContent = text; el.style.left = x + 'px'; el.style.top = y + 'px'; dream.appendChild(el); setTimeout(() => el.remove(), 1200); }
+function sparks(x, y) {
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement('div'); s.className = 'spark';
+    const a = i / 10 * Math.PI * 2, d = rand(30, 55);
+    s.style.left = x + 'px'; s.style.top = y + 'px';
+    s.style.setProperty('--dx', Math.cos(a) * d + 'px'); s.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    s.style.background = pick(['#ffd970', '#ff9ec7', '#9fd8ff', '#fff']);
+    dream.appendChild(s); setTimeout(() => s.remove(), 700);
+  }
+}
+
+function trySwap(slot, scary) {
+  const item = G.palette[slot];
+  if (!item || !scary || state !== 'play') return false;
+  if (item.s !== scary.def.s) {
+    const b = paletteEl.children[slot]; b.classList.remove('no'); void b.offsetWidth; b.classList.add('no');
+    fx(scary.x, scary.y - 36, 'かたちがちがう…');
+    return false;
+  }
+  // 入れ替え
+  scary.el.remove();
+  G.scary = G.scary.filter(s => s !== scary);
+  const el = makeEl(item, 'happy pop');
+  G.happy.push({def:item, x:scary.x, y:scary.y, vx:rand(-12, 12), vy:rand(-16, -6), ph:Math.random() * 6, el});
+  if (G.happy.length > 14) { const old = G.happy.shift(); old.el.remove(); }
+  G.swaps.push([scary.def, item]);
+  G.fear = Math.max(0, G.fear - 4);
+  sparks(scary.x, scary.y);
+  fx(scary.x, scary.y - 38, `${scary.def.n}が${item.n}に！`);
+  G.palette[slot] = newItem();
+  renderPalette();
+  return true;
+}
+
+function renderPalette() {
+  paletteEl.innerHTML = '';
+  G.palette.forEach((it, i) => {
+    const b = document.createElement('button');
+    b.className = 'item' + (i === sel ? ' sel' : '');
+    b.innerHTML = `<span class="sh">${SH[it.s]}</span><span class="em">${it.e}</span><span class="nm">${it.n}</span>`;
+    b.setAttribute('aria-label', `${it.n}（${SH[it.s]}）`);
+    b.addEventListener('pointerdown', e => startDrag(e, i));
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel = sel === i ? -1 : i; renderPalette(); } });
+    paletteEl.appendChild(b);
+  });
+}
+
+// ── ドラッグ ──
+function scaryAt(cx, cy) {
+  const r = dream.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
+  let best = null, bd = 46;
+  for (const s of G.scary) { const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = s; } }
+  return best;
+}
+function startDrag(e, i) {
+  if (state !== 'play') return;
+  e.preventDefault();
+  const ghost = document.createElement('div'); ghost.className = 'drag'; ghost.textContent = G.palette[i].e;
+  document.body.appendChild(ghost);
+  dragging = {i, ghost, sx:e.clientX, sy:e.clientY, moved:false, id:e.pointerId};
+  moveGhost(e.clientX, e.clientY);
+}
+function moveGhost(x, y) { if (dragging) dragging.ghost.style.transform = `translate(${x}px, ${y}px) translate(-50%,-60%)`; }
+addEventListener('pointermove', e => {
+  if (!dragging || e.pointerId !== dragging.id) return;
+  if (Math.hypot(e.clientX - dragging.sx, e.clientY - dragging.sy) > 8) dragging.moved = true;
+  moveGhost(e.clientX, e.clientY);
+  const t = scaryAt(e.clientX, e.clientY - 20);
+  G.scary.forEach(s => s.el.classList.toggle('target', s === t));
+});
+addEventListener('pointerup', e => {
+  if (!dragging || e.pointerId !== dragging.id) return;
+  const d = dragging; dragging = null; d.ghost.remove();
+  G.scary.forEach(s => s.el.classList.remove('target'));
+  if (d.moved) { const t = scaryAt(e.clientX, e.clientY - 20); if (t) trySwap(d.i, t); sel = -1; renderPalette(); }
+  else { sel = sel === d.i ? -1 : d.i; renderPalette(); }
+});
+addEventListener('pointercancel', () => { if (dragging) { dragging.ghost.remove(); dragging = null; } });
+// タップ→タップ
+dream.addEventListener('pointerdown', e => {
+  if (state !== 'play' || sel < 0) return;
+  const t = scaryAt(e.clientX, e.clientY);
+  if (t) { trySwap(sel, t); sel = -1; renderPalette(); }
+});
+
+// ── 更新 ──
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state === 'play') update(dt, now);
+  render(now);
+  requestAnimationFrame(loop);
+}
+function update(dt, now) {
+  G.t += dt;
+  G.spawnT -= dt;
+  if (G.spawnT <= 0) { spawnScary(); G.spawnT = Math.max(0.9, 3.0 - N * 0.3 - G.t * 0.025) * rand(0.8, 1.2); }
+  const tg = target();
+  for (const s of G.scary) {
+    const dx = tg.x - s.x, dy = tg.y - s.y, d = Math.hypot(dx, dy);
+    s.ph += dt * 3;
+    s.x += (dx / d * s.sp + Math.cos(s.ph) * 14) * dt;
+    s.y += (dy / d * s.sp + Math.sin(s.ph * 1.3) * 10) * dt;
+    if (d < 30) {
+      s.hit = true; s.el.remove();
+      G.fear += 22;
+      dream.classList.remove('shake'); void dream.offsetWidth; dream.classList.add('shake');
+      fx(tg.x + 40, tg.y - 60, 'うぅ…こわい');
+    }
+  }
+  G.scary = G.scary.filter(s => !s.hit);
+  G.fear = Math.max(0, G.fear - 1.2 * dt);
+  const {w, h} = size();
+  for (const p of G.happy) {
+    p.ph += dt;
+    p.x += (p.vx + Math.sin(p.ph) * 6) * dt; p.y += (p.vy + Math.cos(p.ph * 0.8) * 5) * dt;
+    if (p.x < 24 || p.x > w - 24) p.vx *= -1;
+    if (p.y < 24) p.vy = Math.abs(p.vy);
+    if (p.y > h - 110) p.vy = -Math.abs(p.vy);
+    p.x = Math.max(24, Math.min(w - 24, p.x)); p.y = Math.max(24, Math.min(h - 110, p.y));
+  }
+  if (G.fear >= 100) return endNight(false);
+  if (G.t >= NIGHT_LEN) endNight(true);
+}
+function render(now) {
+  if (!G) return;
+  for (const s of G.scary) s.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
+  for (const p of G.happy) p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+  const joy = Math.max(0, Math.min(1, G.happy.length / 10 - G.fear / 250));
+  const top = mix(NIGHTMARE[0], HAPPYC[0], joy), bot = mix(NIGHTMARE[1], HAPPYC[1], joy);
+  dream.style.background = `linear-gradient(rgb(${top}), rgb(${bot}))`;
+  $('face').textContent = G.fear > 65 ? '😰' : G.fear > 30 ? '😣' : joy > 0.55 ? '😊' : '😴';
+  $('zz').style.color = joy > 0.5 ? '#6a4b8f' : '#fff6fb';
+  $('timeBar').style.width = Math.min(100, G.t / NIGHT_LEN * 100) + '%';
+  $('fearBar').style.width = Math.min(100, G.fear) + '%';
+  $('happy').textContent = G.swaps.length;
+}
+
+function endNight(morning) {
+  state = 'end';
+  G.scary.forEach(s => s.el.remove()); G.scary = [];
+  if (morning && N > best) { best = N; try { localStorage.setItem('yumekae-best', String(best)); } catch(e) {} }
+  const pairs = {};
+  for (const [a, b] of G.swaps) { const k = a.n + '→' + b.n; pairs[k] = (pairs[k] || 0) + 1; }
+  const lines = Object.keys(pairs).slice(0, 6).map(k => { const [a, b] = k.split('→'); return `${a}が${b}になった${pairs[k] > 1 ? `（${pairs[k]}回）` : ''}。`; });
+  const mood = !morning ? 'こわくて、とちゅうで目がさめちゃった。' : G.swaps.length >= 14 ? 'すごく楽しい夢だった！' : G.swaps.length >= 8 ? '楽しい夢だった。' : 'ちょっとこわかったけど、朝までねむれた。';
+  $('endTitle').textContent = morning ? 'おはよう！' : 'うわぁっ！';
+  $('diary').innerHTML = `<b>ゆめにっき　${N}日目</b>${lines.length ? lines.join('<br>') + '<br>' : 'なにも入れ替わらなかった。<br>'}${mood}`;
+  $('endBtn').textContent = morning ? `次の夜へ（${N + 1}日目）` : `${N}日目の夜をもう一度`;
+  $('endBtn').onclick = () => { if (morning) N++; startNight(); };
+  setTimeout(() => { $('endOv').hidden = false; }, 600);
+  if (!morning) { const cleared = N - 1; setTimeout(() => window.GC && GC.submitScore(cleared), 1200); }
+}
+function startNight() {
+  newNight(); state = 'play'; sel = -1;
+  $('night').innerHTML = `${N}日目の夜<small>${best ? `最高 ${best}日目まで` : 'はじめての夜'}</small>`;
+  $('startOv').hidden = true; $('endOv').hidden = true;
+}
+$('startBtn').onclick = () => { N = 1; startNight(); };
+
+// タイトル裏の見本
+newNight();
+setTimeout(() => {
+  const {w, h} = size();
+  [[SCARY[7], w * 0.25, h * 0.3], [SCARY[2], w * 0.72, h * 0.22]].forEach(([d, x, y]) => G.scary.push({def:d, x, y, ph:0, sp:0, el:makeEl(d, 'scary')}));
+  [[HAPPY[0], w * 0.6, h * 0.5], [HAPPY[9], w * 0.3, h * 0.55]].forEach(([d, x, y]) => G.happy.push({def:d, x, y, vx:0, vy:0, ph:0, el:makeEl(d, 'happy')}));
+}, 50);
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

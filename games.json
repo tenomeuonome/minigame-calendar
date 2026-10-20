@@ -1,7 +1,23 @@
 [
-  {"date":"2026-10-16","title":"うらめし肝試し（幽霊が肝試し客を驚かす）","url":"https://claude.ai/artifact/WrnQQwWT4C37YsvwGbQrPv","announced":true},
-  {"date":"2026-10-17","title":"武装ジャンケン（CPU戦・2人対戦）","url":"https://claude.ai/artifact/9N6PtLk4hND6tkruk31qrj","announced":true},
-  {"date":"2026-10-18","title":"視力検査の結果を良くしてあげよう","url":"https://claude.ai/artifact/NX9EU5m1hYxPCMnZwSA1gc","announced":true},
-  {"date":"2026-10-19","title":"ぷ〜ん（蚊の横スクロール）","url":"https://claude.ai/artifact/C5826S2j2Et6uYUXLFMeQt","announced":true},
-  {"date":"2026-10-20","title":"半額シール争奪戦（ステージ制）","url":"https://claude.ai/artifact/E3X2NC5qpv6kBaLFSHqJA6"}
+  {"date":"2026-10-16","title":"うらめし肝試し（幽霊が肝試し客を驚かす）","file":"games/urameshi-kimodameshi.html","score":{"order":"desc","unit":"点","min":0,"max":200000,"decimals":0,"label":"魂3つを失うまでの恐怖スコア"}},
+  {"date":"2026-10-17","title":"武装ジャンケン（CPU戦・2人対戦）","file":"games/busou-janken.html","score":{"order":"asc","unit":"秒","min":0.08,"max":2.6,"decimals":2,"label":"CPU戦の最速防御反応"}},
+  {"date":"2026-10-18","title":"視力検査の結果を良くしてあげよう","file":"games/shiryoku-kensa.html","score":{"order":"desc","unit":"","min":0.1,"max":2,"decimals":1,"label":"到達した視力"}},
+  {"date":"2026-10-19","title":"ぷ〜ん（蚊の横スクロール）","file":"games/puun.html","score":{"order":"desc","unit":"mg","min":0,"max":300,"decimals":2,"label":"死ぬまでに吸った血の合計"}},
+  {"date":"2026-10-20","title":"半額シール争奪戦（ステージ制）","file":"games/hangaku-seal.html","score":{"order":"desc","unit":"円","min":0,"max":50000,"decimals":0,"label":"通しで達成したお値引きの累計"}},
+  {"date":"2026-10-21","title":"星座すくい","file":"games/seiza-sukui.html","score":{"order":"desc","unit":"点","min":0,"max":8000,"decimals":0,"label":"ポイ3本ですくった星座の合計点"}},
+  {"date":"2026-10-22","title":"星つなぎ（やさしい／ふつう／むずかしい）","file":"games/hoshi-tsunagi.html","score":{"order":"desc","unit":"点","min":0,"max":1500,"decimals":0,"label":"6問の合計点(難易度は混ざる)"}},
+  {"date":"2026-10-23","title":"ゆめかえっこ（怖い夢をハッピーに）","file":"games/yume-kaekko.html","score":{"order":"desc","unit":"夜","min":0,"max":100,"decimals":0,"label":"朝まで守りきれた夜の数"}},
+  {"date":"2026-10-24","title":"カッパの川くだり","file":"games/kappa-kawakudari.html","score":{"order":"desc","unit":"点","min":0,"max":150000,"decimals":0,"label":"距離m + きゅうり×20"}},
+  {"date":"2026-10-25","title":"切り方道場（包丁で正しく切る）","file":"games/kirikata-dojo.html","score":{"order":"desc","unit":"点","min":0,"max":800,"decimals":0,"label":"8品の合計点(800点満点)"}},
+  {"date":"2026-10-26","title":"栗拾い（熊・ヒト・サルに競り負けるな）","file":"games/kuri-hiroi.html","score":{"order":"desc","unit":"個","min":0,"max":120,"decimals":0,"label":"60秒で拾った栗の数"}},
+  {"date":"2026-10-27","title":"赤ちゃんの世話（クレーム5件でゲームオーバー）","file":"games/akachan-no-sewa.html","score":{"order":"desc","unit":"点","min":0,"max":3500,"decimals":0,"label":"60秒の世話スコア"}},
+  {"date":"2026-10-28","title":"こっそり呼び込み（ガラの悪い人を避けて営業）","file":"games/yobikomi.html","score":{"order":"desc","unit":"人","min":0,"max":80,"decimals":0,"label":"60秒で案内できたお客さん"}},
+  {"date":"2026-10-29","title":"流れ星キャッチ（虫取り網で夜空の星を捕まえる）","file":"games/nagareboshi-catch.html","score":{"order":"desc","unit":"個","min":0,"max":120,"decimals":0,"label":"45秒でキャッチした流れ星"}},
+  {"date":"2026-10-30","title":"授業中のこっそりタイム（先生の目を盗んで早弁・手紙・漫画）","file":"games/jugyouchu-kossori.html","score":{"order":"desc","unit":"点","min":0,"max":600,"decimals":0,"label":"バレずに稼いだこっそりスコア"}},
+  {"date":"2026-10-31","title":"ペンギンの素潜り漁（サメ・シャチに気をつけて）","file":"games/penguin-fishing.html","score":{"order":"desc","unit":"匹","min":0,"max":300,"decimals":0,"label":"60秒で捕った魚の数"}},
+  {"date":"2026-11-01","title":"牛丼屋さん（つゆだく・ねぎぬきなどカスタム対応）","file":"games/gyudon-ya.html","score":{"order":"desc","unit":"点","min":0,"max":3000,"decimals":0,"label":"注文どおりに出した牛丼のスコア"}},
+  {"date":"2026-11-02","title":"書類判定ハンコ係（不備のある書類は却下）","file":"games/hanko-gakari.html","score":{"order":"desc","unit":"点","min":0,"max":3000,"decimals":0,"label":"正しく判定した書類のスコア"}},
+  {"date":"2026-11-03","title":"プール飛び込み（空中スピンで加点、着水はまっすぐ）","file":"games/pool-diving.html","score":{"order":"desc","unit":"点","min":0,"max":700,"decimals":0,"label":"5ダイブの合計点"}},
+  {"date":"2026-11-04","title":"わんこそば早食い（受け取る→入れる→噛む→飲むをリズムで）","file":"games/wanko-soba.html","score":{"order":"desc","unit":"点","min":0,"max":20000,"decimals":0,"label":"50秒のタイミングスコア"}},
+  {"date":"2026-11-05","title":"大食いチャレンジ（消化と満腹度の駆け引き）","file":"games/oogui.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"満腹にならずに食べた量"}}
 ]

@@ -1,0 +1,404 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>星つなぎ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* 田んぼの上に広がる夜空、夜の見た目に固定：上にHUD（何問目・星座名・線の数・時間・点）、中央に夜空、下に操作ボタン。藍の空に金の線 */
+:root{
+  --sky:#070b1e; --panel:#10173a; --line:#26305c; --star:#fff4d2; --dim:#8b95c2;
+  --gold:#ffd77a; --bad:#ff6b7a; --ok:#86e3b0;
+  --f-display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--sky);color:var(--star);font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:end}
+.q{display:flex;flex-direction:column;gap:2px;min-width:0}
+.q small{font-size:11px;color:var(--dim);letter-spacing:.08em}
+.q b{font-family:var(--f-display);font-weight:700;font-size:24px;line-height:1.2;color:var(--star)}
+.q b span{font-family:var(--f-body);font-size:13px;color:var(--dim);margin-left:6px;font-weight:500}
+.nums{display:flex;gap:14px;text-align:right}
+.nums div{display:flex;flex-direction:column;line-height:1.1}
+.nums small{font-size:10px;color:var(--dim)}
+.nums b{font-size:18px;font-variant-numeric:tabular-nums;font-weight:700}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+canvas{display:block;touch-action:none;border-radius:12px}
+.sample{position:absolute;top:8px;right:8px;width:86px;height:86px;background:rgba(16,23,58,.8);border:1px solid var(--line);border-radius:10px;pointer-events:none}
+.sample span{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:9px;color:var(--dim)}
+.bar{display:flex;gap:8px;align-items:center}
+.bar .msg{flex:1;font-size:12px;color:var(--dim);min-width:0}
+.btn{font-family:var(--f-body);font-weight:700;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--star);border-radius:999px;padding:8px 14px;cursor:pointer}
+.btn:focus-visible,.go:focus-visible,.lv button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,8,22,.86);border-radius:12px;padding:16px;box-sizing:border-box;overflow-y:auto}
+.card{max-width:350px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--f-display);font-weight:700;font-size:42px;margin:0;line-height:1.15;text-shadow:0 0 18px rgba(255,215,122,.3)}
+.card h2{font-family:var(--f-display);font-weight:700;font-size:30px;margin:0;color:var(--gold)}
+.card p{margin:0;font-size:13px;line-height:1.75}
+.lv{display:flex;flex-direction:column;gap:8px}
+.lv button{display:grid;grid-template-columns:6em 1fr;gap:8px;align-items:center;text-align:left;font-family:var(--f-body);color:var(--star);
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.lv button b{font-size:16px} .lv button span{font-size:12px;color:var(--dim);line-height:1.5}
+.lv button[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.result{display:grid;grid-template-columns:1fr auto;gap:4px 14px;font-size:13px;font-variant-numeric:tabular-nums;margin:0}
+.result dt{color:var(--dim)} .result dd{margin:0;text-align:right}
+.result .tot{font-size:16px;font-weight:700;color:var(--gold)}
+.go{font-family:var(--f-body);font-weight:700;font-size:16px;background:var(--gold);color:var(--sky);border:0;border-radius:999px;padding:11px 26px;cursor:pointer;align-self:flex-start}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div class="q"><small id="qno">1 / 6 問目</small><b id="qname">オリオン座<span>★8</span></b></div>
+    <div class="nums">
+      <div><small>線</small><b id="lines">0/8</b></div>
+      <div><small>時間</small><b id="time">0</b></div>
+      <div><small>点</small><b id="score">0</b></div>
+    </div>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="星をつないで星座を作る夜空"></canvas>
+    <div class="sample" id="sample" hidden><canvas id="sampleCv" width="172" height="172" style="width:86px;height:86px"></canvas><span>見本</span></div>
+    <div class="overlay" id="startOv">
+      <div class="card">
+        <h1>星つなぎ</h1>
+        <p>夜空にかくれた星座を、星と星を線でつないで作ろう。全6問。</p>
+        <p>星から星へ<b>なぞる</b>か、2つの星を順に<b>タップ</b>すると線が引ける。</p>
+        <div class="lv" id="lv">
+          <button data-lv="easy" aria-pressed="true"><b>やさしい</b><span>星座の線がうっすら見える。まちがえた線はすぐ消える。</span></button>
+          <button data-lv="normal" aria-pressed="false"><b>ふつう</b><span>線は見えない。右上に見本の形が出る。まちがいはすぐわかる。</span></button>
+          <button data-lv="hard" aria-pressed="false"><b>むずかしい</b><span>ノーヒント。星の明るさも同じ。まちがった線も残るので、タップして消そう。</span></button>
+        </div>
+        <button class="go" id="startBtn">夜空を見上げる</button>
+      </div>
+    </div>
+    <div class="overlay" id="clearOv" hidden>
+      <div class="card">
+        <h2 id="cName">オリオン座</h2>
+        <p id="cFact"></p>
+        <dl class="result" id="cRes"></dl>
+        <button class="go" id="nextBtn">次の星座へ</button>
+      </div>
+    </div>
+    <div class="overlay" id="overOv" hidden>
+      <div class="card">
+        <h1>夜明け</h1>
+        <dl class="result" id="oRes"></dl>
+        <button class="go" id="retryBtn">もう一晩</button>
+      </div>
+    </div>
+  </div>
+  <div class="bar">
+    <span class="msg" id="msg">星から星へなぞって線を引こう</span>
+    <button class="btn" id="giveBtn">答えを見る</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rand = (a, b) => a + Math.random() * (b - a);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const W = 360; let H = 560, scale = 1;
+
+// 星座（形は簡略化）
+const DEFS = [
+  {name:'こいぬ座', pts:[[-0.5,0.2],[0.5,-0.2]], lines:[[0,1]], fact:'明るいプロキオンは冬の大三角のひとつ。'},
+  {name:'さんかく座', pts:[[-0.6,0.4],[0.7,0.2],[0,-0.6]], lines:[[0,1],[1,2],[2,0]], fact:'3つの星だけでできた小さな秋の星座。'},
+  {name:'や座', pts:[[-0.9,0.2],[0,0],[0.6,-0.1],[0.9,-0.4],[0.9,0.25]], lines:[[0,1],[1,2],[2,3],[2,4]], fact:'はくちょう座の近くに飛ぶ、小さな矢の星座。'},
+  {name:'いるか座', pts:[[-0.3,-0.3],[0.2,-0.4],[0.3,0.1],[-0.2,0.2],[-0.7,0.7]], lines:[[0,1],[1,2],[2,3],[3,0],[3,4]], fact:'小さなひし形がいるかの体。夏の夜に見える。'},
+  {name:'カシオペヤ座', pts:[[-1,-0.2],[-0.5,0.4],[0,-0.1],[0.5,0.45],[1,-0.3]], lines:[[0,1],[1,2],[2,3],[3,4]], fact:'W字形が目印。北極星を探す手がかりになる。'},
+  {name:'こと座', pts:[[-0.3,-0.8],[0,-0.3],[0.35,-0.2],[0.45,0.5],[0.1,0.4]], lines:[[0,1],[1,2],[2,3],[3,4],[4,1]], fact:'ベガは七夕の織姫星。夏の大三角のひとつ。'},
+  {name:'おうし座', pts:[[0.05,0.5],[-0.25,0.1],[-0.95,-0.6],[0.3,0.15],[0.9,-0.55]], lines:[[0,1],[1,2],[0,3],[3,4]], fact:'赤いアルデバランが牡牛の目。すばるもこの星座の中にある。'},
+  {name:'かんむり座', pts:[[-0.9,-0.1],[-0.65,0.3],[-0.25,0.55],[0.2,0.6],[0.6,0.4],[0.85,0.05],[0.95,-0.3]], lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]], fact:'半円に並んだ星が冠の形。春から夏に見える。'},
+  {name:'オリオン座', pts:[[-0.5,-0.75],[0.5,-0.65],[-0.15,0],[0,0.05],[0.15,0.1],[-0.45,0.9],[0.55,0.8],[0,-1]], lines:[[0,7],[7,1],[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]], fact:'ななめに並ぶ三つ星が目印の冬の星座。'},
+  {name:'はくちょう座', pts:[[0,-1],[0,-0.3],[0,0.35],[0,1],[-0.6,-0.4],[-1,-0.05],[0.6,-0.25],[1,0.15]], lines:[[0,1],[1,2],[2,3],[4,1],[1,6],[4,5],[6,7]], fact:'デネブは夏の大三角のひとつ。十字の形から北十字とも呼ばれる。'},
+  {name:'しし座', pts:[[0.5,0.4],[0.3,0.05],[0.35,-0.3],[0.6,-0.6],[0.85,-0.55],[0.9,-0.3],[-0.4,0.1],[-0.45,-0.3],[-1,0.2]], lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[2,7],[7,8],[8,6],[6,1]], fact:'レグルスがライオンの心臓。頭は「？」を裏返した形。'},
+  {name:'ふたご座', pts:[[-0.3,-0.9],[0.3,-0.85],[-0.35,-0.3],[-0.45,0.3],[-0.6,0.9],[0.3,-0.3],[0.35,0.3],[0.5,0.9],[-0.85,-0.2],[0.8,-0.25]], lines:[[0,2],[2,3],[3,4],[1,5],[5,6],[6,7],[2,8],[5,9],[2,5]], fact:'カストルとポルックス、2つの明るい星が兄弟の頭。'},
+  {name:'ペガスス座', pts:[[-0.3,-0.3],[0.3,-0.3],[0.3,0.3],[-0.3,0.3],[0.65,0.45],[0.9,0.7],[1,0.95],[0.65,-0.5],[0.95,-0.65],[0.6,-0.1],[0.95,-0.2]], lines:[[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6],[1,7],[7,8],[1,9],[9,10]], fact:'大きな四角形「秋の四辺形」が天馬の胴体。'},
+  {name:'おおぐま座', pts:[[-1,-0.5],[-0.7,-0.45],[-0.45,-0.3],[-0.2,-0.2],[0.25,-0.25],[0.3,0.1],[-0.15,0.15],[0.7,-0.4],[0.9,-0.1],[0.35,0.6],[0.45,0.9],[-0.2,0.55],[-0.3,0.9]], lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3],[4,7],[7,8],[8,5],[5,9],[9,10],[6,11],[11,12]], fact:'しっぽと腰の7つの星が北斗七星。'},
+  {name:'さそり座', pts:[[0.8,-0.9],[0.95,-0.6],[0.85,-0.3],[0.5,-0.5],[0.3,-0.35],[0.1,-0.2],[0,0.1],[-0.05,0.4],[-0.2,0.7],[-0.5,0.85],[-0.8,0.7],[-0.9,0.45],[-0.7,0.35]], lines:[[0,3],[1,3],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12]], fact:'赤く光るアンタレスがさそりの心臓。夏の南の空に低く見える。'},
+];
+const LV = {
+  easy:   {decoys:22, guide:true,  sample:false, feedback:true,  brightCon:true},
+  normal: {decoys:36, guide:false, sample:true,  feedback:true,  brightCon:true},
+  hard:   {decoys:50, guide:false, sample:false, feedback:false, brightCon:false},
+};
+const ROUNDS = 6;
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  H = Math.round(Math.max(460, Math.min(720, W * r.height / Math.max(1, r.width))));
+  const f = Math.max(0.1, Math.min(r.width / W, r.height / H));
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.style.width = W * f + 'px'; cv.style.height = H * f + 'px';
+  cv.width = Math.round(W * f * dpr); cv.height = Math.round(H * f * dpr);
+  scale = f * dpr;
+}
+addEventListener('resize', () => { const oldH = H; resize(); if (R && oldH !== H) buildRound(R.def); });
+
+// ── 状態 ──
+let lv = 'easy', state = 'title', run, R = null, flashes = [], drag = null, selected = -1, bgDust = [];
+for (let i = 0; i < 160; i++) bgDust.push({x:Math.random(), y:Math.random(), r:rand(0.3, 0.8), ph:Math.random() * 6});
+const key = (a, b) => a < b ? a + '-' + b : b + '-' + a;
+let bests = {}; try { bests = JSON.parse(localStorage.getItem('hoshitsunagi-best') || '{}'); } catch(e) {}
+
+function buildRound(def) {
+  const cfg = LV[lv];
+  const top = 30, bottom = H - 70;
+  const size = Math.min(W * 0.36, (bottom - top) * 0.34) * (def.pts.length <= 3 ? 0.75 : 1);
+  const ang = rand(-0.5, 0.5);
+  const cx = rand(W * 0.5 - 30, W * 0.5 + 30), cy = rand(top + size + 10, bottom - size - 10);
+  const s = Math.sin(ang), c = Math.cos(ang);
+  const stars = def.pts.map(([px, py], i) => ({x:cx + (px * c - py * s) * size, y:cy + (px * s + py * c) * size, con:i, r:cfg.brightCon ? (i === 0 ? 3.4 : 2.8) : rand(1.6, 3.2), ph:Math.random() * 6}));
+  const map = stars.map((_, i) => i);
+  let tries = 0;
+  while (stars.length < def.pts.length + cfg.decoys && tries < 4000) {
+    tries++;
+    const x = rand(16, W - 16), y = rand(18, H - 80);
+    if (stars.some(p => Math.hypot(p.x - x, p.y - y) < 28)) continue;
+    // 星座の線の上にはおとりを置かない
+    if (def.lines.some(([a, b]) => segDist(x, y, stars[a], stars[b]) < 14)) continue;
+    stars.push({x, y, con:-1, r:cfg.brightCon ? rand(1.0, 2.3) : rand(1.6, 3.2), ph:Math.random() * 6});
+  }
+  const order = shuffle(stars.map((_, i) => i));
+  const idx = new Map(order.map((g, k) => [g, k]));
+  const sorted = order.map(g => stars[g]);
+  const sol = new Set(def.lines.map(([a, b]) => key(idx.get(map[a]), idx.get(map[b]))));
+  R = {def, stars:sorted, sol, drawn:new Map(), t:0, miss:0, done:false, gave:false, glow:0};
+  selected = -1; drag = null; flashes = [];
+  drawSample();
+}
+function segDist(px, py, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / l));
+  return Math.hypot(px - a.x - dx * t, py - a.y - dy * t);
+}
+function starAt(x, y, rad = 20) {
+  let bi = -1, bd = rad;
+  R.stars.forEach((s, i) => { const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; bi = i; } });
+  return bi;
+}
+
+function tryLine(a, b) {
+  if (a === b || a < 0 || b < 0 || R.done) return;
+  const k = key(a, b);
+  if (R.drawn.has(k)) return;
+  const ok = R.sol.has(k);
+  if (LV[lv].feedback) {
+    if (ok) { R.drawn.set(k, true); say('いい線！'); }
+    else { R.miss++; flashes.push({a, b, t:0.6}); say('その線はちがうみたい'); }
+  } else {
+    R.drawn.set(k, ok);
+    if (!ok) R.miss++;
+    say('線を引いた。まちがいだと思ったら線をタップで消せる');
+  }
+  checkDone();
+}
+function checkDone() {
+  const correct = [...R.drawn.values()].filter(v => v).length;
+  const wrong = R.drawn.size - correct;
+  if (correct === R.sol.size && wrong === 0) finishRound(false);
+}
+function finishRound(gave) {
+  R.done = true; R.gave = gave; R.glow = 1;
+  if (gave) R.sol.forEach(k => R.drawn.set(k, true));
+  const time = Math.floor(R.t);
+  const n = R.def.pts.length;
+  const base = gave ? 0 : 50 + n * 10;
+  const tb = gave ? 0 : Math.max(0, 45 - time) * 2;
+  const mp = gave ? 0 : R.miss * 15;
+  const pts = gave ? 0 : Math.max(10, base + tb - mp);
+  run.score += pts;
+  run.log.push({name:R.def.name, pts, time, miss:R.miss, gave});
+  $('cName').textContent = (gave ? '答え：' : '') + R.def.name;
+  $('cFact').textContent = R.def.fact;
+  $('cRes').innerHTML = gave ? `<dt>答えを見たので</dt><dd>0点</dd>` :
+    `<dt>星座の点（★${n}）</dt><dd>${base}</dd><dt>時間ボーナス（${time}秒）</dt><dd>+${tb}</dd><dt>まちがい ${R.miss}回</dt><dd>−${mp}</dd><dt class="tot">この星座</dt><dd class="tot">${pts}点</dd>`;
+  $('nextBtn').textContent = run.i + 1 >= ROUNDS ? '結果を見る' : '次の星座へ';
+  setTimeout(() => { $('clearOv').hidden = false; }, gave ? 1400 : 900);
+}
+function say(t) { $('msg').textContent = t; }
+
+// ── 描画 ──
+function draw(now) {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#050817'); g.addColorStop(0.75, '#0d1640'); g.addColorStop(1, '#1b2558');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (const d of bgDust) { ctx.fillStyle = `rgba(210,215,255,${0.18 + 0.12 * Math.sin(now / 1100 + d.ph)})`; ctx.fillRect(d.x * W, d.y * (H - 60), d.r, d.r); }
+  // 山と田んぼのシルエット
+  ctx.fillStyle = '#060a1a';
+  ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 10) ctx.lineTo(x, H - 52 - 26 * Math.sin(x / 70) * Math.sin(x / 23 + 1) - 14 * Math.sin(x / 140));
+  ctx.lineTo(W, H); ctx.fill();
+  ctx.fillStyle = '#0a1230'; ctx.fillRect(0, H - 26, W, 26);
+  ctx.strokeStyle = 'rgba(140,160,255,.12)'; for (let y = H - 22; y < H; y += 6) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  if (!R) return;
+  const cfg = LV[lv];
+  // うっすら線（やさしい）
+  if (cfg.guide && !R.done) {
+    ctx.strokeStyle = 'rgba(255,215,122,.16)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    R.sol.forEach(k => { const [a, b] = k.split('-').map(Number); ctx.moveTo(R.stars[a].x, R.stars[a].y); ctx.lineTo(R.stars[b].x, R.stars[b].y); });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  // 引いた線
+  for (const [k, ok] of R.drawn) {
+    const [a, b] = k.split('-').map(Number);
+    const showOk = cfg.feedback || R.done;
+    ctx.strokeStyle = R.done ? `rgba(255,215,122,${0.7 + 0.3 * R.glow})` : showOk ? '#ffd77a' : 'rgba(255,244,210,.8)';
+    ctx.lineWidth = R.done ? 2.4 : 2;
+    if (R.done) { ctx.shadowColor = '#ffd77a'; ctx.shadowBlur = 10 * R.glow; }
+    ctx.beginPath(); ctx.moveTo(R.stars[a].x, R.stars[a].y); ctx.lineTo(R.stars[b].x, R.stars[b].y); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  for (const f of flashes) {
+    ctx.strokeStyle = `rgba(255,107,122,${f.t / 0.6})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(R.stars[f.a].x, R.stars[f.a].y); ctx.lineTo(R.stars[f.b].x, R.stars[f.b].y); ctx.stroke();
+  }
+  // なぞり中の線
+  if (drag && drag.from >= 0 && drag.moved) {
+    const s = R.stars[drag.from];
+    ctx.strokeStyle = 'rgba(255,244,210,.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(drag.x, drag.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // 星
+  R.stars.forEach((s, i) => {
+    const tw = reduceMotion ? 1 : 0.8 + 0.2 * Math.sin(now / 500 + s.ph);
+    const r = s.r * tw;
+    const gl = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 4.5);
+    gl.addColorStop(0, 'rgba(255,244,210,.45)'); gl.addColorStop(1, 'rgba(255,244,210,0)');
+    ctx.fillStyle = gl; ctx.fillRect(s.x - r * 5, s.y - r * 5, r * 10, r * 10);
+    ctx.fillStyle = R.done && s.con >= 0 ? '#fff' : '#fff4d2';
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
+    if (i === selected || (drag && drag.from === i)) {
+      ctx.strokeStyle = '#ffd77a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(s.x, s.y, 11, 0, Math.PI * 2); ctx.stroke();
+    }
+  });
+  if (R.done) {
+    ctx.fillStyle = `rgba(255,215,122,${Math.min(1, R.glow + 0.4)})`; ctx.font = '700 26px "Shippori Mincho B1", serif'; ctx.textAlign = 'center';
+    ctx.fillText(R.def.name, W / 2, 40);
+  }
+}
+function drawSample() {
+  const sc = $('sampleCv'), c = sc.getContext('2d');
+  $('sample').hidden = !LV[lv].sample;
+  c.clearRect(0, 0, 172, 172);
+  if (!R) return;
+  const pts = R.def.pts.map(([x, y]) => [86 + x * 58, 76 + y * 58]);
+  c.strokeStyle = '#ffd77a'; c.lineWidth = 2.4;
+  c.beginPath(); R.def.lines.forEach(([a, b]) => { c.moveTo(...pts[a]); c.lineTo(...pts[b]); }); c.stroke();
+  c.fillStyle = '#fff4d2'; pts.forEach(p => { c.beginPath(); c.arc(p[0], p[1], 4.5, 0, Math.PI * 2); c.fill(); });
+}
+
+// ── HUD・進行 ──
+function hud() {
+  if (!R || !run) return;
+  const correct = [...R.drawn.values()].filter(v => v).length;
+  $('qno').textContent = `${run.i + 1} / ${ROUNDS} 問目　${{easy:'やさしい', normal:'ふつう', hard:'むずかしい'}[lv]}`;
+  $('qname').innerHTML = `${R.def.name}<span>★${R.def.pts.length}</span>`;
+  $('lines').textContent = LV[lv].feedback ? `${correct}/${R.sol.size}` : `${R.drawn.size}/${R.sol.size}`;
+  $('time').textContent = Math.floor(R.t);
+  $('score').textContent = run.score;
+}
+function startRun() {
+  run = {i:0, score:0, log:[], order:shuffle(DEFS.slice()).slice(0, ROUNDS).sort((a, b) => a.pts.length - b.pts.length)};
+  state = 'play';
+  buildRound(run.order[0]);
+  $('startOv').hidden = true; $('overOv').hidden = true; $('clearOv').hidden = true;
+  say(LV[lv].feedback ? '星から星へなぞって線を引こう' : 'ノーヒント。線の数だけを手がかりに');
+}
+function nextRound() {
+  $('clearOv').hidden = true;
+  run.i++;
+  if (run.i >= ROUNDS) return endRun();
+  buildRound(run.order[run.i]);
+  say('次の星座をさがそう');
+}
+function endRun() {
+  state = 'over';
+  const prev = bests[lv] || 0;
+  if (run.score > prev) { bests[lv] = run.score; try { localStorage.setItem('hoshitsunagi-best', JSON.stringify(bests)); } catch(e) {} }
+  $('oRes').innerHTML = run.log.map(l => `<dt>${l.name}${l.gave ? '（答え）' : ''}</dt><dd>${l.pts}点</dd>`).join('') +
+    `<dt class="tot">合計</dt><dd class="tot">${run.score}点</dd><dt>自己ベスト（${{easy:'やさしい', normal:'ふつう', hard:'むずかしい'}[lv]}）</dt><dd>${bests[lv] || 0}点</dd>`;
+  $('overOv').hidden = false;
+  if (!run.sent) { run.sent = true; const v = run.score; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
+}
+$('lv').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  lv = b.dataset.lv;
+  $('lv').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+});
+$('startBtn').onclick = startRun;
+$('nextBtn').onclick = nextRound;
+$('retryBtn').onclick = () => { $('overOv').hidden = true; $('startOv').hidden = false; state = 'title'; };
+$('giveBtn').onclick = () => { if (state === 'play' && R && !R.done) finishRound(true); };
+
+// ── 入力 ──
+function toLocal(e) { const r = cv.getBoundingClientRect(); return {x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H}; }
+cv.addEventListener('pointerdown', e => {
+  if (state !== 'play' || !R || R.done) return;
+  e.preventDefault();
+  try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+  const p = toLocal(e), i = starAt(p.x, p.y);
+  drag = {from:i, x:p.x, y:p.y, sx:p.x, sy:p.y, moved:false, id:e.pointerId};
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const p = toLocal(e); drag.x = p.x; drag.y = p.y;
+  if (Math.hypot(p.x - drag.sx, p.y - drag.sy) > 10) drag.moved = true;
+});
+function pointerUp(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (!R || R.done) return;
+  if (d.moved) {
+    const j = starAt(d.x, d.y, 24);
+    if (d.from >= 0 && j >= 0 && j !== d.from) tryLine(d.from, j);
+    selected = -1;
+    return;
+  }
+  // タップ
+  if (d.from >= 0) {
+    if (selected >= 0 && selected !== d.from) { tryLine(selected, d.from); selected = -1; }
+    else selected = selected === d.from ? -1 : d.from;
+    return;
+  }
+  // 線をタップで消す（むずかしい）
+  if (!LV[lv].feedback) {
+    for (const k of R.drawn.keys()) {
+      const [a, b] = k.split('-').map(Number);
+      if (segDist(d.x, d.y, R.stars[a], R.stars[b]) < 9) { R.drawn.delete(k); say('線を消した'); return; }
+    }
+  }
+  selected = -1;
+}
+cv.addEventListener('pointerup', pointerUp);
+cv.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) drag = null; });
+
+resize();
+// タイトル裏の見本
+buildRound(DEFS[8]);
+R.done = true; R.glow = 0.4; R.sol.forEach(k => R.drawn.set(k, true));
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state === 'play' && R && !R.done) R.t += dt;
+  if (R && R.done && state === 'play') R.glow = Math.max(0, R.glow - dt * 0.6);
+  for (const f of flashes) f.t -= dt;
+  flashes = flashes.filter(f => f.t > 0);
+  draw(now); hud();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

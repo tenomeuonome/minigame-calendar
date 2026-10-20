@@ -1,0 +1,475 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>星座すくい</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@800&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* 夏祭りの夜店、夜の見た目に固定：上にHUD（ポイ・紙の強さ・点数）、中央に夜空を張ったたらい、下にヒント。藍の水に星の黄、屋台の朱 */
+:root{
+  --night:#0c1229; --panel:#141c3a; --line:#2a3566; --star:#fff1bf; --dim:#8f9ac4;
+  --shu:#e8452c; --pink:#ff86ad; --ok:#7fe0a8; --warn:#ffcf5a;
+  --f-display:"Kaisei Tokumin","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--night);color:var(--star);font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.pois{display:flex;gap:4px}
+.pois svg{width:26px;height:26px;transition:opacity .3s}
+.pois svg.off{opacity:.18}
+.paper{display:flex;flex-direction:column;gap:3px;min-width:0}
+.paper span{font-size:11px;color:var(--dim);letter-spacing:.06em}
+.paper .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.paper .bar i{display:block;height:100%;width:100%;background:var(--star);transition:background .2s}
+.score{text-align:right;line-height:1.05}
+.score b{font-family:var(--f-display);font-weight:800;font-size:26px;color:var(--star);font-variant-numeric:tabular-nums}
+.score small{display:block;font-size:11px;color:var(--dim)}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+canvas{display:block;touch-action:none;border-radius:14px}
+.hint{margin:0;text-align:center;font-size:12px;color:var(--dim);line-height:1.5}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,12,28,.86);border-radius:14px;padding:16px;box-sizing:border-box;overflow-y:auto}
+.card{max-width:340px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--f-display);font-weight:800;font-size:44px;margin:0;color:var(--star);text-shadow:0 0 18px rgba(255,241,191,.35);line-height:1.1}
+.card p{margin:0;font-size:13px;line-height:1.75}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:3px}
+.card li::marker{color:var(--shu)}
+.card em{font-style:normal;color:var(--warn);font-weight:700}
+.result{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;font-variant-numeric:tabular-nums;margin:0}
+.result dt{color:var(--dim)} .result dd{margin:0;text-align:right}
+.zukan{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.zukan div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.35}
+.zukan div b{display:block;font-weight:700;color:var(--star)}
+.zukan div span{color:var(--dim);font-variant-numeric:tabular-nums}
+.zukan div.none{opacity:.35}
+.go{font-family:var(--f-body);font-weight:700;font-size:17px;background:var(--shu);color:#fff;border:0;border-radius:999px;padding:11px 26px;cursor:pointer;align-self:flex-start;box-shadow:0 4px 0 #9c2a19}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #9c2a19}
+.go:focus-visible{outline:3px solid var(--star);outline-offset:3px}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div class="pois" id="pois" aria-label="残りのポイ"></div>
+    <div class="paper"><span id="paperLbl">ポイの紙</span><div class="bar"><i id="paperBar"></i></div></div>
+    <div class="score"><b id="score">0</b><small id="best">最高 0点</small></div>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="夜空を張ったたらいと泳ぐ星座"></canvas>
+    <div class="overlay" id="startOv">
+      <div class="card">
+        <h1>星座すくい</h1>
+        <p>夏祭りの夜店。たらいには夜空が張られ、星座がゆらゆら泳いでいる。ポイですくってお椀に入れよう。</p>
+        <ul>
+          <li>押すとポイが水に入る。そのまま動かして星座の下へ、<em>指を離すとすくい上げる</em>。</li>
+          <li>星座の星の7割以上がポイの中にあればすくえる。</li>
+          <li><em>星の数が多い星座ほど重く、ポイが破れやすい</em>。そのかわり点数は大きい。</li>
+          <li>水に長く入れるほど紙がふやける。真上から入れたり速く動かしたりすると星座が逃げる。</li>
+          <li>ポイは3本。全部破れたらおしまい。</li>
+        </ul>
+        <button class="go" id="startBtn">ポイを受け取る</button>
+      </div>
+    </div>
+    <div class="overlay" id="overOv" hidden>
+      <div class="card">
+        <h1>おしまい</h1>
+        <dl class="result">
+          <dt>点数</dt><dd id="rScore">0</dd>
+          <dt>すくった星座</dt><dd id="rCount">0</dd>
+          <dt>すくった星</dt><dd id="rStars">0</dd>
+          <dt>最高点</dt><dd id="rBest">0</dd>
+        </dl>
+        <div class="zukan" id="zukan"></div>
+        <button class="go" id="retryBtn">もう一回（ポイ3本）</button>
+      </div>
+    </div>
+  </div>
+  <p class="hint">押して水に入れる → 星座の下へ → 離してすくう</p>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rand = (a, b) => a + Math.random() * (b - a);
+const W = 360; let H = 560, POOL, BOWL;
+const R = 60; // ポイの半径
+let scale = 1, cssScale = 1;
+
+// 星座（形は簡略化）。pts は -1〜1 の座標、lines は結ぶ星の番号
+const DEFS = [
+  {name:'こいぬ座', pts:[[-0.5,0.2],[0.5,-0.2]], lines:[[0,1]]},
+  {name:'さんかく座', pts:[[-0.6,0.4],[0.7,0.2],[0,-0.6]], lines:[[0,1],[1,2],[2,0]]},
+  {name:'や座', pts:[[-0.9,0.2],[0,0],[0.6,-0.1],[0.9,-0.4],[0.9,0.25]], lines:[[0,1],[1,2],[2,3],[2,4]]},
+  {name:'いるか座', pts:[[-0.3,-0.3],[0.2,-0.4],[0.3,0.1],[-0.2,0.2],[-0.7,0.7]], lines:[[0,1],[1,2],[2,3],[3,0],[3,4]]},
+  {name:'カシオペヤ座', pts:[[-1,-0.2],[-0.5,0.4],[0,-0.1],[0.5,0.45],[1,-0.3]], lines:[[0,1],[1,2],[2,3],[3,4]]},
+  {name:'こと座', pts:[[-0.3,-0.8],[0,-0.3],[0.35,-0.2],[0.45,0.5],[0.1,0.4]], lines:[[0,1],[1,2],[2,3],[3,4],[4,1]]},
+  {name:'おうし座', pts:[[0.05,0.5],[-0.25,0.1],[-0.95,-0.6],[0.3,0.15],[0.9,-0.55],[0.75,0.75]], lines:[[0,1],[1,2],[0,3],[3,4]]},
+  {name:'かんむり座', pts:[[-0.9,-0.1],[-0.65,0.3],[-0.25,0.55],[0.2,0.6],[0.6,0.4],[0.85,0.05],[0.95,-0.3]], lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]},
+  {name:'オリオン座', pts:[[-0.5,-0.75],[0.5,-0.65],[-0.15,0],[0,0.05],[0.15,0.1],[-0.45,0.9],[0.55,0.8],[0,-1]], lines:[[0,7],[7,1],[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]]},
+  {name:'はくちょう座', pts:[[0,-1],[0,-0.3],[0,0.35],[0,1],[-0.6,-0.4],[-1,-0.05],[0.6,-0.25],[1,0.15]], lines:[[0,1],[1,2],[2,3],[4,1],[1,6],[4,5],[6,7]]},
+  {name:'しし座', pts:[[0.5,0.4],[0.3,0.05],[0.35,-0.3],[0.6,-0.6],[0.85,-0.55],[0.9,-0.3],[-0.4,0.1],[-0.45,-0.3],[-1,0.2]], lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[2,7],[7,8],[8,6],[6,1]]},
+  {name:'ふたご座', pts:[[-0.3,-0.9],[0.3,-0.85],[-0.35,-0.3],[-0.45,0.3],[-0.6,0.9],[0.3,-0.3],[0.35,0.3],[0.5,0.9],[-0.85,-0.2],[0.8,-0.25]], lines:[[0,2],[2,3],[3,4],[1,5],[5,6],[6,7],[2,8],[5,9],[2,5]]},
+  {name:'ペガスス座', pts:[[-0.3,-0.3],[0.3,-0.3],[0.3,0.3],[-0.3,0.3],[0.65,0.45],[0.9,0.7],[1,0.95],[0.65,-0.5],[0.95,-0.65],[0.6,-0.1],[0.95,-0.2]], lines:[[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6],[1,7],[7,8],[1,9],[9,10]]},
+  {name:'おおぐま座', pts:[[-1,-0.5],[-0.7,-0.45],[-0.45,-0.3],[-0.2,-0.2],[0.25,-0.25],[0.3,0.1],[-0.15,0.15],[0.7,-0.4],[0.9,-0.1],[0.35,0.6],[0.45,0.9],[-0.2,0.55],[-0.3,0.9]], lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3],[4,7],[7,8],[8,5],[5,9],[9,10],[6,11],[11,12]]},
+  {name:'さそり座', pts:[[0.8,-0.9],[0.95,-0.6],[0.85,-0.3],[0.5,-0.5],[0.3,-0.35],[0.1,-0.2],[0,0.1],[-0.05,0.4],[-0.2,0.7],[-0.5,0.85],[-0.8,0.7],[-0.9,0.45],[-0.7,0.35]], lines:[[0,3],[1,3],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12]]},
+];
+DEFS.forEach(d => { d.n = d.pts.length; d.size = 30 + d.n * 3; d.points = Math.round(d.n * 10 * (1 + d.n / 10)); });
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  H = Math.round(Math.max(470, Math.min(700, W * r.height / Math.max(1, r.width))));
+  const f = Math.max(0.1, Math.min(r.width / W, r.height / H));
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.style.width = W * f + 'px'; cv.style.height = H * f + 'px';
+  cv.width = Math.round(W * f * dpr); cv.height = Math.round(H * f * dpr);
+  scale = f * dpr; cssScale = f;
+  POOL = {x:14, y:14, w:W - 28, h:H - 96};
+  BOWL = {x:W - 70, y:H - 40};
+}
+addEventListener('resize', resize);
+resize();
+
+// ── 状態 ──
+let state = 'title', G, cons = [], ripples = [], fx = [], bgStars = [];
+let best = 0; try { best = +localStorage.getItem('seiza-best') || 0; } catch(e) {}
+const poi = {x:W / 2, y:H / 2, down:false, paper:100, soak:0, broken:0, shown:false};
+for (let i = 0; i < 70; i++) bgStars.push({x:Math.random(), y:Math.random(), r:rand(0.4, 1.2), ph:Math.random() * 6});
+
+function spawnCon(fromEdge = true) {
+  const onScreen = new Set(cons.map(c => c.def.name));
+  const pool = DEFS.filter(d => !onScreen.has(d.name));
+  // 大きい星座はやや出にくい
+  const weights = pool.map(d => 1.6 - d.n / 14);
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0), def = pool[0];
+  for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { def = pool[i]; break; } }
+  const m = def.size * 0.7;
+  const c = {def, x:rand(POOL.x + m, POOL.x + POOL.w - m), y:rand(POOL.y + m, POOL.y + POOL.h - m), ang:rand(-0.6, 0.6),
+    vx:rand(-20, 20), vy:rand(-20, 20), va:rand(-0.15, 0.15), state:'swim', t:0, alpha:fromEdge ? 0 : 1, tw:Math.random() * 6};
+  cons.push(c);
+}
+function starsOf(c) {
+  const s = Math.sin(c.ang), co = Math.cos(c.ang), k = c.def.size;
+  return c.def.pts.map(([px, py]) => ({x:c.x + (px * co - py * s) * k, y:c.y + (px * s + py * co) * k}));
+}
+function inside(c) {
+  const st = starsOf(c);
+  return st.filter(p => Math.hypot(p.x - poi.x, p.y - poi.y) < R - 3).length / st.length;
+}
+function newGame() {
+  G = {score:0, pois:3, caught:{}, stars:0, count:0};
+  cons = []; ripples = []; fx = [];
+  for (let i = 0; i < 6; i++) spawnCon(false);
+  freshPoi();
+  renderPois();
+}
+function freshPoi() { poi.paper = 100; poi.soak = 0; poi.broken = 0; poi.down = false; }
+
+// ── ポイ操作 ──
+function dip(x, y) {
+  if (state !== 'play' || poi.broken > 0 || G.pois <= 0) return;
+  poi.x = x; poi.y = y; poi.down = true; poi.shown = true;
+  ripples.push({x, y, r:R * 0.6, life:1});
+  // 真上から入れると驚いて逃げる
+  for (const c of cons) {
+    if (c.state !== 'swim') continue;
+    const d = Math.hypot(c.x - x, c.y - y);
+    if (d < R * 0.85 && Math.random() < 0.65) {
+      const a = Math.atan2(c.y - y, c.x - x) + rand(-0.4, 0.4);
+      c.vx = Math.cos(a) * 170; c.vy = Math.sin(a) * 170; c.va += rand(-0.8, 0.8);
+      fx.push({x:c.x, y:c.y - c.def.size - 6, text:'ビクッ', color:'#8f9ac4', t:0.8});
+    }
+  }
+}
+function moveTo(x, y) {
+  const d = Math.hypot(x - poi.x, y - poi.y);
+  if (poi.down) {
+    poi.paper -= d * 0.012;
+    poi.speed = d;
+    if (d > 3) ripples.push({x, y, r:8, life:0.5});
+  }
+  poi.x = x; poi.y = y;
+}
+function lift() {
+  if (!poi.down) return;
+  poi.down = false;
+  const got = cons.filter(c => c.state === 'swim' && inside(c) >= 0.7);
+  ripples.push({x:poi.x, y:poi.y, r:R, life:0.8});
+  if (!got.length) { poi.soak *= 0.5; return; }
+  const L = got.reduce((a, c) => a + c.def.n, 0);
+  const dmg = L * 6 * (1 + poi.soak * 0.3) * rand(0.88, 1.12);
+  if (dmg > poi.paper) {
+    rip(got.length > 1 ? '重すぎて破れた！' : `${got[0].def.name}が重くて破れた！`);
+    for (const c of got) { c.vx = rand(-60, 60); c.vy = rand(40, 90); c.va = rand(-1, 1); c.splash = 0.6; }
+    return;
+  }
+  poi.paper -= L * 2.2;
+  poi.soak *= 0.4;
+  const bonus = got.length > 1 ? 1.5 : 1;
+  for (const c of got) {
+    c.state = 'caught'; c.t = 0; c.sx = c.x; c.sy = c.y; c.pts = Math.round(c.def.points * bonus);
+  }
+  fx.push({x:poi.x, y:poi.y - R - 10, text:got.length > 1 ? `${got.length}つ同時！×1.5` : `${got[0].def.name}！`, color:'#fff1bf', t:1.2, size:16});
+}
+function rip(text) {
+  poi.down = false; poi.broken = 1.1; poi.ripX = poi.x; poi.ripY = poi.y;
+  G.pois--; renderPois();
+  ripples.push({x:poi.x, y:poi.y, r:R, life:1});
+  fx.push({x:poi.x, y:poi.y - R - 10, text, color:'#ff86ad', t:1.4, size:15});
+}
+
+// ── 更新 ──
+function update(dt, now) {
+  for (const c of cons) {
+    c.tw += dt;
+    if (c.state === 'swim') {
+      c.alpha = Math.min(1, c.alpha + dt * 1.5);
+      const max = 34 - c.def.n * 1.2;
+      c.vx += rand(-30, 30) * dt; c.vy += rand(-30, 30) * dt;
+      const sp = Math.hypot(c.vx, c.vy);
+      if (sp > max) { c.vx *= 1 - dt * 1.8; c.vy *= 1 - dt * 1.8; }
+      // 速く動くポイから逃げる
+      if (poi.down && (poi.speed || 0) > 7) {
+        const d = Math.hypot(c.x - poi.x, c.y - poi.y);
+        if (d < 110) { const a = Math.atan2(c.y - poi.y, c.x - poi.x); c.vx += Math.cos(a) * 260 * dt; c.vy += Math.sin(a) * 260 * dt; }
+      }
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      c.va += rand(-0.2, 0.2) * dt; c.va = Math.max(-0.3, Math.min(0.3, c.va * (1 - dt * 0.5)));
+      c.ang += c.va * dt;
+      const m = c.def.size * 0.6;
+      if (c.x < POOL.x + m) { c.x = POOL.x + m; c.vx = Math.abs(c.vx); }
+      if (c.x > POOL.x + POOL.w - m) { c.x = POOL.x + POOL.w - m; c.vx = -Math.abs(c.vx); }
+      if (c.y < POOL.y + m) { c.y = POOL.y + m; c.vy = Math.abs(c.vy); }
+      if (c.y > POOL.y + POOL.h - m) { c.y = POOL.y + POOL.h - m; c.vy = -Math.abs(c.vy); }
+      if (c.splash) c.splash = Math.max(0, c.splash - dt);
+    } else if (c.state === 'caught') {
+      c.t += dt / 0.7;
+      const e = Math.min(1, c.t), k = e * e * (3 - 2 * e);
+      c.x = c.sx + (BOWL.x - c.sx) * k; c.y = c.sy - 60 * Math.sin(e * Math.PI) + (BOWL.y - c.sy) * k;
+      c.alpha = 1 - e * 0.6;
+      if (c.t >= 1) {
+        c.done = true;
+        G.score += c.pts; G.count++; G.stars += c.def.n;
+        G.caught[c.def.name] = (G.caught[c.def.name] || 0) + 1;
+        fx.push({x:BOWL.x, y:BOWL.y - 34, text:'+' + c.pts, color:'#fff1bf', t:1, size:16});
+      }
+    }
+  }
+  const before = cons.length;
+  cons = cons.filter(c => !c.done);
+  for (let i = cons.length; i < before; i++) spawnCon(true);
+
+  poi.speed = (poi.speed || 0) * (1 - Math.min(1, dt * 10));
+  if (state === 'play') {
+    if (poi.down) {
+      poi.soak += dt; poi.paper -= 5 * dt;
+      if (poi.paper <= 0) rip('ふやけて破れた…');
+    }
+    if (poi.broken > 0) {
+      poi.broken -= dt;
+      if (poi.broken <= 0) { if (G.pois > 0) freshPoi(); else gameOver(); }
+    }
+  }
+  for (const r of ripples) { r.r += 40 * dt; r.life -= dt * 0.9; }
+  ripples = ripples.filter(r => r.life > 0);
+  for (const f of fx) { f.t -= dt; f.y -= 22 * dt; }
+  fx = fx.filter(f => f.t > 0);
+}
+
+// ── 描画 ──
+function draw(now) {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  // 屋台の台
+  ctx.fillStyle = '#1a1430'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#3a2418'; ctx.fillRect(0, H - 74, W, 74);
+  ctx.fillStyle = 'rgba(255,255,255,.05)'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, H - 74, 2, 74);
+  // たらい
+  const P = POOL;
+  ctx.fillStyle = '#e8452c'; roundRect(P.x - 8, P.y - 8, P.w + 16, P.h + 16, 22); ctx.fill();
+  const g = ctx.createLinearGradient(0, P.y, 0, P.y + P.h);
+  g.addColorStop(0, '#0d1a3e'); g.addColorStop(1, '#071029');
+  ctx.fillStyle = g; roundRect(P.x, P.y, P.w, P.h, 16); ctx.fill();
+  ctx.save(); roundRect(P.x, P.y, P.w, P.h, 16); ctx.clip();
+  // 天の川と小さな星
+  const mw = ctx.createLinearGradient(P.x, P.y + P.h, P.x + P.w, P.y);
+  mw.addColorStop(0.3, 'rgba(150,170,255,0)'); mw.addColorStop(0.5, 'rgba(150,170,255,.08)'); mw.addColorStop(0.7, 'rgba(150,170,255,0)');
+  ctx.fillStyle = mw; ctx.fillRect(P.x, P.y, P.w, P.h);
+  for (const s of bgStars) {
+    ctx.fillStyle = `rgba(220,225,255,${0.25 + 0.2 * Math.sin(now / 900 + s.ph)})`;
+    ctx.beginPath(); ctx.arc(P.x + s.x * P.w, P.y + s.y * P.h, s.r, 0, Math.PI * 2); ctx.fill();
+  }
+  // 提灯の映りこみ
+  for (const [lx, col] of [[0.18, '232,69,44'], [0.5, '255,207,90'], [0.82, '232,69,44']]) {
+    const x = P.x + lx * P.w, y = P.y + 24 + (reduceMotion ? 0 : Math.sin(now / 700 + lx * 9) * 2);
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, 34); rg.addColorStop(0, `rgba(${col},.22)`); rg.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = rg; ctx.fillRect(x - 40, y - 40, 80, 80);
+  }
+  // 波紋
+  for (const r of ripples) { ctx.strokeStyle = `rgba(200,215,255,${r.life * 0.35})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(r.x, r.y, r.r, r.r * 0.8, 0, 0, Math.PI * 2); ctx.stroke(); }
+  // 星座（すくう前）
+  const hot = poi.down ? cons.filter(c => c.state === 'swim' && inside(c) >= 0.7) : [];
+  for (const c of cons) if (c.state === 'swim') drawCon(c, now, hot.includes(c));
+  ctx.restore();
+
+  // ポイ
+  if (state === 'play' && (poi.shown || poi.broken > 0)) drawPoi(now, hot);
+
+  // お椀
+  drawBowl();
+  for (const c of cons) if (c.state === 'caught') drawCon(c, now, false, 0.6 + 0.4 * (1 - Math.min(1, c.t)));
+
+  // 文字
+  ctx.textAlign = 'center';
+  for (const f of fx) { ctx.globalAlpha = Math.min(1, f.t * 2.5); ctx.fillStyle = f.color; ctx.font = `700 ${f.size || 13}px "Zen Maru Gothic", sans-serif`; ctx.fillText(f.text, f.x, f.y); }
+  ctx.globalAlpha = 1;
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function drawCon(c, now, hot, sc = 1) {
+  const st = starsOf(c);
+  ctx.save();
+  if (sc !== 1) { ctx.translate(c.x, c.y); ctx.scale(sc, sc); ctx.translate(-c.x, -c.y); }
+  ctx.globalAlpha = c.alpha * (c.splash ? 0.5 + 0.5 * Math.sin(now / 40) : 1);
+  ctx.strokeStyle = hot ? 'rgba(255,207,90,.75)' : 'rgba(180,195,255,.35)'; ctx.lineWidth = hot ? 1.6 : 1;
+  ctx.beginPath(); for (const [a, b] of c.def.lines) { ctx.moveTo(st[a].x, st[a].y); ctx.lineTo(st[b].x, st[b].y); } ctx.stroke();
+  st.forEach((p, i) => {
+    const tw = 0.75 + 0.25 * Math.sin(now / 400 + i * 1.7 + c.tw);
+    const r = (i === 0 ? 3.2 : 2.2) * tw;
+    const gl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4);
+    gl.addColorStop(0, 'rgba(255,241,191,.55)'); gl.addColorStop(1, 'rgba(255,241,191,0)');
+    ctx.fillStyle = gl; ctx.fillRect(p.x - r * 4, p.y - r * 4, r * 8, r * 8);
+    ctx.fillStyle = '#fff6d6'; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+  });
+  if (c.state === 'swim') {
+    ctx.fillStyle = hot ? '#ffcf5a' : 'rgba(143,154,196,.9)'; ctx.font = '700 10px "Zen Maru Gothic", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`${c.def.name} ★${c.def.n}`, c.x, Math.max(...st.map(p => p.y)) + 14);
+  }
+  ctx.restore();
+}
+function drawPoi(now, hot) {
+  const broken = poi.broken > 0;
+  const x = broken ? poi.ripX : poi.x, y = broken ? poi.ripY : poi.y;
+  const lifted = !poi.down;
+  ctx.save();
+  // 持ち手
+  ctx.strokeStyle = '#ff86ad'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x + R * 0.7, y + R * 0.7); ctx.lineTo(x + R * 1.5, y + R * 1.6); ctx.stroke();
+  // 紙
+  const wet = Math.min(1, poi.soak / 4);
+  if (broken) {
+    ctx.fillStyle = 'rgba(247,243,234,.55)';
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
+    const n = 14; ctx.moveTo(x + R * 0.75, y);
+    for (let i = 1; i <= n; i++) { const a = i / n * Math.PI * 2, rr = R * (0.55 + 0.25 * ((i * 7919) % 5) / 5); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    ctx.fill('evenodd');
+  } else {
+    ctx.fillStyle = lifted ? `rgba(247,243,234,${0.8 - wet * 0.25})` : `rgba(230,236,250,${0.16 + wet * 0.12})`;
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
+    // 紙が弱ったらしわ
+    if (poi.paper < 45) {
+      ctx.strokeStyle = 'rgba(160,160,170,.45)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - 20, y - 8); ctx.lineTo(x - 4, y + 2); ctx.lineTo(x + 10, y - 4); ctx.lineTo(x + 22, y + 10); ctx.stroke();
+    }
+  }
+  ctx.strokeStyle = '#ff86ad'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
+  // 重さの見こみ
+  if (poi.down && hot.length) {
+    const L = hot.reduce((a, c) => a + c.def.n, 0);
+    const risk = L * 6 * (1 + poi.soak * 0.3) / Math.max(1, poi.paper);
+    const [txt, col] = risk < 0.75 ? ['いける', '#7fe0a8'] : risk < 1 ? ['あぶない', '#ffcf5a'] : ['破れそう！', '#ff86ad'];
+    ctx.fillStyle = 'rgba(8,12,28,.75)'; roundRect(x - 50, y - R - 34, 100, 24, 12); ctx.fill();
+    ctx.fillStyle = col; ctx.font = '700 12px "Zen Maru Gothic", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`重さ★${L}　${txt}`, x, y - R - 17);
+  }
+  ctx.restore();
+}
+function drawBowl() {
+  const {x, y} = BOWL;
+  ctx.fillStyle = '#9c2a19'; ctx.beginPath(); ctx.ellipse(x, y - 8, 46, 12, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e8452c'; ctx.beginPath(); ctx.ellipse(x, y - 8, 46, 12, 0, 0, Math.PI); ctx.lineTo(x - 30, y + 22); ctx.quadraticCurveTo(x, y + 34, x + 30, y + 22); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1a2a5a'; ctx.beginPath(); ctx.ellipse(x, y - 8, 40, 9, 0, 0, Math.PI * 2); ctx.fill();
+  const n = state === 'title' ? 0 : G.count;
+  for (let i = 0; i < Math.min(n, 12); i++) { ctx.fillStyle = '#fff6d6'; ctx.beginPath(); ctx.arc(x - 30 + (i * 23) % 60, y - 10 + (i % 3) * 2.5, 1.8, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = '#c9b8a8'; ctx.font = '700 11px "Zen Maru Gothic", sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(`お椀 ${n}`, x, y + 32);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#8f9ac4';
+  ctx.fillText('★が多いほど重い・点が高い', 18, H - 30);
+}
+
+// ── HUD ──
+const POI_ICON = '<svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="11" cy="11" r="8" fill="#f7f3ea" stroke="#ff86ad" stroke-width="2.5"/><path d="M17 17l6 6" stroke="#ff86ad" stroke-width="3.5" stroke-linecap="round"/></svg>';
+function renderPois() { $('pois').innerHTML = [0,1,2].map(i => POI_ICON.replace('<svg', `<svg class="${i < (G ? G.pois : 3) ? '' : 'off'}"`)).join(''); }
+let lastScore = -1;
+function hud() {
+  if (!G) return;
+  const p = Math.max(0, poi.paper);
+  const bar = $('paperBar');
+  bar.style.width = (poi.broken > 0 ? 0 : p) + '%';
+  bar.style.background = p > 60 ? '#fff1bf' : p > 30 ? '#ffcf5a' : '#ff86ad';
+  $('paperLbl').textContent = poi.broken > 0 ? 'ポイが破れた' : poi.down ? `ポイの紙（水の中 ${poi.soak.toFixed(1)}秒）` : 'ポイの紙';
+  if (G.score !== lastScore) { $('score').textContent = G.score; lastScore = G.score; }
+}
+$('best').textContent = `最高 ${best}点`;
+
+function gameOver() {
+  state = 'over';
+  if (G.score > best) { best = G.score; try { localStorage.setItem('seiza-best', String(best)); } catch(e) {} }
+  $('best').textContent = `最高 ${best}点`;
+  $('rScore').textContent = G.score + '点';
+  $('rCount').textContent = G.count + ' 個';
+  $('rStars').textContent = G.stars + ' 個';
+  $('rBest').textContent = best + '点';
+  $('zukan').innerHTML = DEFS.map(d => {
+    const n = G.caught[d.name] || 0;
+    return `<div class="${n ? '' : 'none'}"><b>${n ? d.name : '？？？'}</b><span>★${d.n}${n ? '　×' + n : ''}</span></div>`;
+  }).join('');
+  $('overOv').hidden = false;
+  if (!G.sent) { G.sent = true; const v = G.score; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
+}
+function start() {
+  newGame(); state = 'play'; lastScore = -1;
+  $('startOv').hidden = true; $('overOv').hidden = true;
+}
+$('startBtn').onclick = start;
+$('retryBtn').onclick = start;
+
+// ── 入力 ──
+function toLocal(e) { const r = cv.getBoundingClientRect(); return {x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H}; }
+let activeId = null;
+cv.addEventListener('pointerdown', e => {
+  if (activeId !== null) return;
+  e.preventDefault(); activeId = e.pointerId;
+  try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+  const p = toLocal(e);
+  if (p.x > POOL.x && p.x < POOL.x + POOL.w && p.y > POOL.y && p.y < POOL.y + POOL.h) dip(p.x, p.y);
+});
+cv.addEventListener('pointermove', e => {
+  if (activeId !== null && e.pointerId !== activeId) return;
+  const p = toLocal(e);
+  if (state === 'play' && poi.broken <= 0) {
+    moveTo(Math.max(POOL.x, Math.min(POOL.x + POOL.w, p.x)), Math.max(POOL.y, Math.min(POOL.y + POOL.h, p.y)));
+    if (e.pointerType === 'mouse') poi.shown = true;
+  }
+});
+const up = e => { if (e.pointerId !== activeId) return; activeId = null; lift(); };
+cv.addEventListener('pointerup', up);
+cv.addEventListener('pointercancel', up);
+
+// タイトル裏でも星座は泳ぐ
+G = {score:0, pois:3, caught:{}, stars:0, count:0};
+for (let i = 0; i < 6; i++) spawnCon(false);
+renderPois();
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt, now); draw(now); hud();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

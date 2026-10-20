@@ -1,0 +1,446 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>武装ジャンケン</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+/* 縦一画面のテレビ対戦番組風：上にCPU、中央に実況と反応タイマー、下に自分と選択ボタン。コバルトの舞台に黄色と赤、太い黒フチ */
+:root{
+  --stage:#2340d9; --stage-deep:#162a9e; --card:#fff8e7; --ink:#111318;
+  --gold:#ffd23f; --red:#ff4b3e; --mint:#3ddc97; --muted:#b9c3ff;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-body:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:radial-gradient(120% 70% at 50% 45%,var(--stage) 0%,var(--stage-deep) 100%);background-color:var(--stage-deep);
+  color:var(--card);font-family:var(--f-body);font-weight:500;overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:10px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+.side{display:flex;align-items:center;gap:12px}
+.who{display:flex;flex-direction:column;gap:4px;min-width:0}
+.who b{font-family:var(--f-display);font-weight:400;font-size:15px;letter-spacing:.06em}
+.hearts{display:flex;gap:4px}
+.heart{width:18px;height:16px;background:var(--red);clip-path:path("M9 16 L1.5 8.2 A4.3 4.3 0 0 1 9 3 A4.3 4.3 0 0 1 16.5 8.2 Z");transition:opacity .3s}
+.heart.off{opacity:.2}
+.slot{width:96px;height:96px;flex:none;border:3px solid var(--ink);border-radius:20px;background:var(--card);display:grid;place-items:center;
+  box-shadow:4px 4px 0 var(--ink);font-size:52px;line-height:1;color:var(--ink);transition:transform .12s}
+.slot svg{width:70px;height:70px}
+.slot.empty{background:rgba(255,248,231,.12);border-style:dashed;border-color:var(--muted);box-shadow:none}
+.you{justify-content:flex-end}
+.you .who{align-items:flex-end;text-align:right}
+.center{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+#msg{font-family:var(--f-display);font-size:clamp(28px,9vw,44px);margin:0;line-height:1.15;text-wrap:balance;color:var(--gold);
+  text-shadow:3px 3px 0 var(--ink)}
+#msg.bad{color:var(--red)} #msg.good{color:var(--mint)}
+#sub{margin:0;font-size:14px;color:var(--muted);min-height:1.4em;font-variant-numeric:tabular-nums}
+.timer{width:min(100%,320px);height:12px;border:3px solid var(--ink);border-radius:999px;background:rgba(0,0,0,.3);overflow:hidden;visibility:hidden}
+.timer.on{visibility:visible}
+.timer i{display:block;height:100%;width:100%;background:var(--gold);transform-origin:left}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.choice{appearance:none;border:3px solid var(--ink);border-radius:16px;background:var(--card);color:var(--ink);box-shadow:0 5px 0 var(--ink);
+  padding:10px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:var(--f-body);font-weight:800;
+  font-size:13px;touch-action:manipulation;transition:transform .06s,box-shadow .06s,opacity .2s;min-width:0}
+.choice .ic{font-size:40px;line-height:1;height:48px;display:grid;place-items:center}
+.choice svg{width:48px;height:48px}
+.choice:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.choice:disabled{opacity:.35;cursor:default}
+.choice:focus-visible,.go:focus-visible,.diff button:focus-visible,.mode button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.phase{font-size:12px;letter-spacing:.14em;color:var(--muted);text-align:center;margin:0}
+.shake{animation:shake .35s}
+.flash{animation:flash .4s}
+@keyframes shake{20%{transform:translateX(-8px) rotate(-3deg)}40%{transform:translateX(8px) rotate(3deg)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes flash{0%{transform:scale(1.25)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.shake,.flash{animation:none}}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(14,22,90,.9);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;z-index:5}
+.card{max-width:340px;display:flex;flex-direction:column;gap:14px}
+.card h1{font-family:var(--f-display);font-weight:400;font-size:42px;margin:0;color:var(--gold);text-shadow:3px 3px 0 var(--ink);text-wrap:balance}
+.card p{margin:0;font-size:14px;line-height:1.7}
+.pairs{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 8px;align-items:center;font-size:13px;font-weight:800;
+  background:var(--card);color:var(--ink);border:3px solid var(--ink);border-radius:14px;padding:10px 12px}
+.pairs span:nth-child(3n+2){color:var(--red)}
+.pairs span:nth-child(3n){text-align:right}
+.diff{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.diff button,.mode button{font-family:var(--f-body);font-weight:800;font-size:14px;border:3px solid var(--ink);border-radius:12px;padding:9px 4px;cursor:pointer;
+  background:rgba(255,248,231,.15);color:var(--card)}
+.diff button[aria-pressed="true"],.mode button[aria-pressed="true"]{background:var(--gold);color:var(--ink)}
+.go{font-family:var(--f-display);font-size:22px;background:var(--red);color:var(--card);border:3px solid var(--ink);border-radius:999px;
+  padding:10px 28px;cursor:pointer;box-shadow:0 5px 0 var(--ink);align-self:flex-start}
+.result{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:15px;font-variant-numeric:tabular-nums;margin:0}
+.result dt{color:var(--muted)} .result dd{margin:0;text-align:right}
+.mode{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* 2人対戦：上半分は180度回転して向かい合わせ */
+#solo{display:contents}
+#duel{flex:1;min-height:0;display:grid;grid-template-rows:1fr auto 1fr;gap:6px}
+.half{min-height:0;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;border:3px solid var(--ink);border-radius:18px;padding:10px;background:rgba(0,0,0,.18)}
+.half.p2{transform:rotate(180deg)}
+.half .top{display:flex;align-items:center;gap:10px}
+.half .slot{width:72px;height:72px;border-radius:16px;font-size:40px;box-shadow:3px 3px 0 var(--ink)}
+.half .slot.empty{box-shadow:none}
+.half .slot svg{width:54px;height:54px}
+.half .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.half .m{font-family:var(--f-display);font-size:clamp(20px,6.5vw,30px);margin:0;line-height:1.15;color:var(--gold);text-shadow:2px 2px 0 var(--ink)}
+.half .m.bad{color:var(--red)} .half .m.good{color:var(--mint)}
+.half .s{margin:0;font-size:12px;color:var(--muted);min-height:1.3em;font-variant-numeric:tabular-nums}
+.half .timer{width:100%;height:10px}
+.half .choice{padding:8px 4px 6px}
+.half .choice .ic{font-size:32px;height:40px} .half .choice svg{width:40px;height:40px}
+.half .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:800;flex-wrap:wrap}
+.half .hp{display:inline-flex;align-items:center;gap:4px;color:var(--muted)}
+.half .hearts .heart{width:14px;height:13px;clip-path:path("M7 13 L1.2 6.6 A3.4 3.4 0 0 1 7 2.4 A3.4 3.4 0 0 1 12.8 6.6 Z")}
+.p1 .tag{color:var(--gold)} .p2 .tag{color:var(--mint)}
+.vs{font-family:var(--f-display);text-align:center;font-size:13px;color:var(--muted);margin:0;letter-spacing:.3em}
+</style>
+
+<div class="app">
+  <div id="solo">
+  <section class="side">
+    <div class="slot empty" id="cpuSlot"></div>
+    <div class="who"><b>CPU</b><div class="hearts" id="cpuHearts"></div></div>
+  </section>
+
+  <section class="center" aria-live="polite">
+    <p id="msg">ジャンケン…</p>
+    <div class="timer" id="timer"><i id="timerBar"></i></div>
+    <p id="sub"></p>
+  </section>
+
+  <section class="side you">
+    <div class="who"><b>あなた</b><div class="hearts" id="youHearts"></div></div>
+    <div class="slot empty" id="youSlot"></div>
+  </section>
+
+  <p class="phase" id="phase">ジャンケン</p>
+  <div class="choices" id="choices"></div>
+  </div>
+
+  <div id="duel" hidden>
+    <section class="half p2" id="h1"></section>
+    <p class="vs">VS</p>
+    <section class="half p1" id="h0"></section>
+  </div>
+
+  <div class="overlay" id="startOv">
+    <div class="card">
+      <h1>武装ジャンケン</h1>
+      <p>ジャンケンに勝ったら攻撃、負けたら防御。防御側は相手の武器を見た瞬間に、合う防具を選ぶ。先に3発当てたほうの勝ち。</p>
+      <div class="pairs">
+        <span>ハンマー</span><span>→</span><span>ヘルメット</span>
+        <span>毒ガス</span><span>→</span><span>ガスマスク</span>
+        <span>ナイフ</span><span>→</span><span>防刃チョッキ</span>
+      </div>
+      <p>防具ボタンは毎回並びが変わる。武器が出る前に押すとフライングで被弾。2人対戦はスマホを机に置き、向かい合って遊ぶ。</p>
+      <div class="mode" id="mode">
+        <button data-m="cpu" aria-pressed="true">CPUと対戦</button>
+        <button data-m="duel" aria-pressed="false">2人で対戦</button>
+      </div>
+      <div class="diff" id="diff">
+        <button data-d="easy" aria-pressed="false">やさしい</button>
+        <button data-d="normal" aria-pressed="true">ふつう</button>
+        <button data-d="oni" aria-pressed="false">鬼</button>
+      </div>
+      <button class="go" id="startBtn">勝負！</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overOv" hidden>
+    <div class="card">
+      <h1 id="overTitle">勝利！</h1>
+      <dl class="result" id="rList"></dl>
+      <button class="go" id="retryBtn">もう一戦</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const SVG = (inner) => `<svg viewBox="0 0 64 64" aria-hidden="true"><g stroke="#111318" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${inner}</g></svg>`;
+const HANDS = [
+  {id:'gu', label:'グー', icon:'✊', beats:'choki'},
+  {id:'choki', label:'チョキ', icon:'✌️', beats:'pa'},
+  {id:'pa', label:'パー', icon:'✋', beats:'gu'},
+];
+const WEAPONS = [
+  {id:'hammer', label:'ハンマー', counter:'helmet', icon:SVG('<rect x="27" y="28" width="9" height="30" rx="3" fill="#c9874a"/><rect x="8" y="10" width="44" height="18" rx="4" fill="#b9bfcc"/><path d="M8 16h44" fill="none"/>')},
+  {id:'gas', label:'毒ガス', counter:'mask', icon:SVG('<rect x="6" y="30" width="18" height="28" rx="5" fill="#7ac74f"/><rect x="10" y="24" width="10" height="7" rx="2" fill="#4a4f5a"/><circle cx="38" cy="26" r="11" fill="#b8e05a"/><circle cx="50" cy="18" r="8" fill="#b8e05a"/><circle cx="51" cy="34" r="9" fill="#b8e05a"/><path d="M34 22l4 4m0-4l-4 4M44 22l4 4m0-4l-4 4" fill="none"/>')},
+  {id:'knife', label:'ナイフ', counter:'vest', icon:SVG('<path d="M24 40 L50 8 Q56 6 55 13 L32 46 Z" fill="#e3e7ee"/><path d="M24 40 L32 46 L18 60 Q13 61 12 56 Z" fill="#3a2a1e"/><path d="M20 38 L35 49" fill="none"/>')},
+];
+const ARMORS = [
+  {id:'helmet', label:'ヘルメット', icon:SVG('<path d="M10 40a22 22 0 0 1 44 0z" fill="#ffd23f"/><rect x="5" y="40" width="54" height="8" rx="4" fill="#ffd23f"/><path d="M32 18v22" fill="none"/>')},
+  {id:'mask', label:'ガスマスク', icon:SVG('<ellipse cx="32" cy="30" rx="21" ry="23" fill="#4a5568"/><circle cx="23" cy="25" r="7" fill="#9fd8ff"/><circle cx="41" cy="25" r="7" fill="#9fd8ff"/><circle cx="32" cy="48" r="9" fill="#2d3442"/><path d="M27 48h10M32 43v10" fill="none" stroke="#6b7487"/>')},
+  {id:'vest', label:'防刃チョッキ', icon:SVG('<path d="M20 6h8l4 9 4-9h8l9 11v41H11V17z" fill="#456e3e"/><path d="M32 15v43M17 32h11M36 32h11" fill="none"/>')},
+];
+const DIFF = {
+  easy:   {p:0.35, react:[600,1500], cpuLimit:1150, win:2600, min:1200},
+  normal: {p:0.55, react:[400,1000], cpuLimit:900,  win:1900, min:800},
+  oni:    {p:0.88, react:[230,470],  cpuLimit:680,  win:1200, min:500},
+};
+
+const $ = id => document.getElementById(id);
+const msgEl = $('msg'), subEl = $('sub'), phaseEl = $('phase'), choicesEl = $('choices');
+const timerEl = $('timer'), timerBar = $('timerBar'), cpuSlot = $('cpuSlot'), youSlot = $('youSlot');
+let diff = 'normal', mode = 'cpu', S, timers = [], runId = 0;
+let best = null; try { const b = localStorage.getItem('busou-best'); best = b ? +b : null; } catch(e) {}
+
+const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+const clearAll = () => { timers.forEach(clearTimeout); timers = []; runId++; document.querySelectorAll('.timer').forEach(t => t.classList.remove('on')); };
+const rand = (a, b) => a + Math.random() * (b - a);
+const sec = ms => (ms / 1000).toFixed(2) + '秒';
+
+function say(text, tone = '', sub = '') {
+  msgEl.textContent = text; msgEl.className = tone; subEl.textContent = sub;
+  msgEl.classList.remove('flash'); void msgEl.offsetWidth; msgEl.classList.add('flash');
+}
+function show(slot, item) {
+  if (!item) { slot.className = 'slot empty'; slot.innerHTML = ''; return; }
+  slot.className = 'slot'; slot.innerHTML = item.icon;
+  slot.classList.add('flash');
+}
+function hit(slot) { slot.classList.remove('shake'); void slot.offsetWidth; slot.classList.add('shake'); }
+function hearts() {
+  for (const [id, hp] of [['cpuHearts', S.cpuHp], ['youHearts', S.youHp]]) {
+    $(id).innerHTML = [0,1,2].map(i => `<i class="heart${i < hp ? '' : ' off'}"></i>`).join('');
+  }
+}
+function choices(list, onPick, enabled = true, box = choicesEl) {
+  box.innerHTML = '';
+  for (const it of list) {
+    const b = document.createElement('button');
+    b.className = 'choice'; b.disabled = !enabled; b.dataset.id = it.id;
+    b.innerHTML = `<span class="ic">${it.icon}</span>${it.label}`;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); if (!b.disabled) onPick(it); });
+    b.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && !b.disabled) { e.preventDefault(); onPick(it); } });
+    box.appendChild(b);
+  }
+}
+const lockBox = box => box.querySelectorAll('button').forEach(b => b.disabled = true);
+const lock = () => choicesEl.querySelectorAll('button').forEach(b => b.disabled = true);
+function runTimer(ms, el = timerEl, bar = timerBar) {
+  el.classList.add('on'); const t0 = performance.now(), id = runId; let stopped = false;
+  const step = now => {
+    if (stopped || id !== runId) return;
+    const r = Math.max(0, 1 - (now - t0) / ms);
+    bar.style.transform = `scaleX(${r})`;
+    bar.style.background = r < 0.35 ? 'var(--red)' : 'var(--gold)';
+    if (r > 0) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  return () => { stopped = true; el.classList.remove('on'); };
+}
+
+// ── ジャンケン ──
+function janken(again = false) {
+  clearAll(); show(cpuSlot, null); show(youSlot, null);
+  phaseEl.textContent = 'ジャンケン';
+  say(again ? 'あいこで…' : 'ジャンケン…', '', '手を選んでください');
+  choices(HANDS, pickHand);
+}
+function pickHand(h) {
+  lock();
+  const c = HANDS[Math.floor(Math.random() * 3)];
+  show(youSlot, h); show(cpuSlot, c); say('ポン！');
+  later(() => {
+    if (c.id === h.id) return janken(true);
+    if (h.beats === c.id) attackPhase(); else defendPhase();
+  }, 750);
+}
+
+// ── 自分が攻撃 ──
+function attackPhase() {
+  clearAll(); show(cpuSlot, null); show(youSlot, null);
+  phaseEl.textContent = 'あなたの攻撃';
+  say('勝ち！攻撃だ', 'good', '武器を選んでください');
+  choices(WEAPONS, w => {
+    lock(); show(youSlot, w);
+    const D = DIFF[diff], win = D.cpuLimit;
+    const t = rand(...D.react);
+    const correct = Math.random() < D.p;
+    const armor = correct ? ARMORS.find(a => a.id === w.counter) : pick(ARMORS.filter(a => a.id !== w.counter));
+    say(w.label + '！', '', ''); runTimer(win);
+    if (t < win) later(() => show(cpuSlot, armor), t);
+    later(() => {
+      clearAll();
+      const blocked = t < win && correct;
+      if (blocked) { say('防がれた！', 'bad', `CPUは${armor.label}で${sec(t)}`); }
+      else {
+        S.cpuHp--; hearts(); hit(cpuSlot);
+        say('命中！', 'good', t >= win ? 'CPUは間に合わなかった' : `CPUは${armor.label}を選んでしまった`);
+      }
+      next();
+    }, Math.max(win, t) + 80);
+  });
+}
+
+// ── 自分が防御 ──
+function defendPhase() {
+  clearAll(); show(cpuSlot, null); show(youSlot, null);
+  phaseEl.textContent = 'あなたの防御';
+  S.defends++;
+  const order = shuffle(ARMORS.slice());
+  const weapon = pick(WEAPONS);
+  const win = S.win;
+  let revealed = false, done = false, t0 = 0;
+  say('負け！来るぞ…', 'bad', '武器を見てから防具を選べ');
+  const finish = (ok, text, sub) => {
+    if (done) return; done = true; clearAll(); lock();
+    if (ok) say(text, 'good', sub);
+    else { S.youHp--; hearts(); hit(youSlot); say(text, 'bad', sub); }
+    S.win = Math.max(DIFF[diff].min, S.win * 0.96);
+    next();
+  };
+  choices(order, a => {
+    if (done) return;
+    show(youSlot, a);
+    if (!revealed) return finish(false, 'フライング！', '武器が出る前に動いた');
+    const rt = performance.now() - t0;
+    if (a.id === weapon.counter) {
+      S.guards++;
+      if (S.fast === null || rt < S.fast) S.fast = rt;
+      finish(true, 'ガード！', '反応 ' + sec(rt));
+    } else finish(false, '痛っ！', `${weapon.label}には${ARMORS.find(x => x.id === weapon.counter).label}`);
+  });
+  later(() => {
+    revealed = true; t0 = performance.now();
+    show(cpuSlot, weapon); say(weapon.label + '！', 'bad', ''); runTimer(win);
+    later(() => finish(false, '遅い！', `${weapon.label}には${ARMORS.find(x => x.id === weapon.counter).label}`), win);
+  }, rand(700, 1900));
+}
+
+function next() {
+  later(() => {
+    if (S.cpuHp <= 0 || S.youHp <= 0) return over(S.cpuHp <= 0);
+    janken();
+  }, 1500);
+}
+function over(won) {
+  clearAll(); lock();
+  if (S.fast !== null && (best === null || S.fast < best)) { best = S.fast; try { localStorage.setItem('busou-best', String(Math.round(best))); } catch(e) {} }
+  $('overTitle').textContent = won ? '勝利！' : '敗北…';
+  $('rList').innerHTML = `<dt>防御成功</dt><dd>${S.guards} / ${S.defends}</dd><dt>今回の最速反応</dt><dd>${S.fast === null ? '—' : sec(S.fast)}</dd><dt>自己ベスト</dt><dd>${best === null ? '—' : sec(best)}</dd>`;
+  $('overOv').hidden = false;
+  if (!S.sent && S.fast !== null) { S.sent = true; const v = Math.round(S.fast / 10) / 100; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
+}
+function start() {
+  clearAll();
+  S = {cpuHp:3, youHp:3, win:DIFF[diff].win, guards:0, defends:0, fast:null};
+  hearts(); $('startOv').hidden = true; $('overOv').hidden = true;
+  janken();
+}
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+$('diff').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  diff = b.dataset.d;
+  $('diff').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+});
+// ── 2人対戦 ──
+let D2 = null, HF = [];
+const heartsHtml = hp => [0,1,2].map(i => `<i class="heart${i < hp ? '' : ' off'}"></i>`).join('');
+const counterLabel = w => ARMORS.find(a => a.id === w.counter).label;
+function buildHalf(i) {
+  const el = $('h' + i);
+  el.innerHTML = `<div class="top"><div class="slot empty"></div><div class="info"><p class="m"></p><p class="s"></p></div></div>
+    <div class="timer"><i></i></div><div class="choices"></div>
+    <div class="foot"><span class="tag">${i ? '上のプレイヤー' : '下のプレイヤー'}</span>
+    <span class="hp">自分 <span class="hearts me"></span></span><span class="hp">相手 <span class="hearts op"></span></span></div>`;
+  const q = s => el.querySelector(s);
+  return {slot:q('.slot'), m:q('.m'), s:q('.s'), timer:q('.timer'), bar:q('.timer i'), ch:q('.choices'), me:q('.me'), op:q('.op')};
+}
+function sayH(h, text, tone = '', sub = '') { h.m.textContent = text; h.m.className = 'm ' + tone; h.s.textContent = sub; }
+function hearts2() { for (const i of [0,1]) { HF[i].me.innerHTML = heartsHtml(D2.hp[i]); HF[i].op.innerHTML = heartsHtml(D2.hp[1-i]); } }
+function duelStart() {
+  clearAll(); HF = [buildHalf(0), buildHalf(1)];
+  D2 = {hp:[3,3], win:2000, guards:[0,0], defends:[0,0], fast:[null,null]};
+  hearts2(); duelJanken(false);
+}
+function duelJanken(again) {
+  clearAll(); const picks = [null, null];
+  const reveal = () => {
+    for (const i of [0,1]) { show(HF[i].slot, picks[1-i]); sayH(HF[i], 'ポン！'); }
+    later(() => {
+      if (picks[0].id === picks[1].id) return duelJanken(true);
+      const w = picks[0].beats === picks[1].id ? 0 : 1;
+      duelAttack(w, 1 - w);
+    }, 900);
+  };
+  for (const i of [0,1]) {
+    show(HF[i].slot, null);
+    sayH(HF[i], again ? 'あいこで…' : 'ジャンケン…', '', '手を選ぶ（相手には見えない）');
+    choices(HANDS, h => {
+      if (picks[i]) return;
+      picks[i] = h; lockBox(HF[i].ch);
+      sayH(HF[i], '選んだ！', '', '相手を待っています');
+      if (picks[0] && picks[1]) reveal();
+    }, true, HF[i].ch);
+  }
+}
+function duelAttack(a, d) {
+  clearAll(); const A = HF[a], Dh = HF[d];
+  show(A.slot, null); show(Dh.slot, null);
+  D2.defends[d]++;
+  const win = D2.win; let weapon = null, t0 = 0, done = false;
+  sayH(A, '勝ち！攻撃だ', 'good', '好きなタイミングで武器を選べ（4秒以内）');
+  sayH(Dh, '負け！来るぞ…', 'bad', '武器を見てから防具を選べ');
+  const stopA = runTimer(4000, A.timer, A.bar);
+  const finish = (hitD, aMsg, dMsg) => {
+    if (done) return; done = true; clearAll(); lockBox(A.ch); lockBox(Dh.ch);
+    sayH(A, ...aMsg); sayH(Dh, ...dMsg);
+    if (hitD) { D2.hp[d]--; hearts2(); hit(Dh.slot); }
+    D2.win = Math.max(800, D2.win * 0.96);
+    later(() => (D2.hp[0] <= 0 || D2.hp[1] <= 0) ? duelOver() : duelJanken(false), 1600);
+  };
+  later(() => { if (!weapon) finish(false, ['時間切れ', 'bad', '攻撃できなかった'], ['セーフ', 'good', '相手が攻撃しそこねた']); }, 4000);
+  choices(WEAPONS, w => {
+    if (weapon || done) return;
+    weapon = w; t0 = performance.now(); stopA(); lockBox(A.ch);
+    show(Dh.slot, w); sayH(A, w.label + '！'); sayH(Dh, w.label + '！', 'bad');
+    runTimer(win, Dh.timer, Dh.bar);
+    later(() => finish(true, ['命中！', 'good', '相手は間に合わなかった'], ['遅い！', 'bad', `${w.label}には${counterLabel(w)}`]), win);
+  }, true, A.ch);
+  choices(shuffle(ARMORS.slice()), ar => {
+    if (done) return;
+    show(A.slot, ar);
+    if (!weapon) return finish(true, ['命中！', 'good', '相手がフライングした'], ['フライング！', 'bad', '武器が出る前に動いた']);
+    const rt = performance.now() - t0;
+    if (ar.id === weapon.counter) {
+      D2.guards[d]++;
+      if (D2.fast[d] === null || rt < D2.fast[d]) D2.fast[d] = rt;
+      finish(false, ['防がれた！', 'bad', `${ar.label}で${sec(rt)}`], ['ガード！', 'good', '反応 ' + sec(rt)]);
+    } else finish(true, ['命中！', 'good', `相手は${ar.label}を選んだ`], ['痛っ！', 'bad', `${weapon.label}には${counterLabel(weapon)}`]);
+  }, true, Dh.ch);
+}
+function duelOver() {
+  clearAll();
+  const w = D2.hp[1] <= 0 ? 0 : 1;
+  sayH(HF[w], 'WIN！', 'good', ''); sayH(HF[1-w], 'LOSE…', 'bad', '');
+  const f = i => D2.fast[i] === null ? '—' : sec(D2.fast[i]);
+  later(() => {
+    $('overTitle').textContent = (w ? '上' : '下') + 'のプレイヤーの勝ち！';
+    $('rList').innerHTML = `<dt>防御成功（下）</dt><dd>${D2.guards[0]} / ${D2.defends[0]}</dd><dt>防御成功（上）</dt><dd>${D2.guards[1]} / ${D2.defends[1]}</dd><dt>最速反応（下）</dt><dd>${f(0)}</dd><dt>最速反応（上）</dt><dd>${f(1)}</dd>`;
+    $('overOv').hidden = false;
+  }, 1400);
+}
+
+$('mode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  mode = b.dataset.m;
+  $('mode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  $('diff').hidden = mode === 'duel';
+});
+$('startBtn').onclick = () => {
+  const duel = mode === 'duel';
+  $('solo').hidden = duel; $('duel').hidden = !duel;
+  if (duel) { $('startOv').hidden = true; $('overOv').hidden = true; duelStart(); } else start();
+};
+$('retryBtn').onclick = () => { $('overOv').hidden = true; $('startOv').hidden = false; };
+
+// タイトル裏の初期表示
+S = {cpuHp:3, youHp:3, win:900, guards:0, defends:0, fast:null};
+hearts(); choices(HANDS, () => {}, false);
+})();
+</script>
+
+</body></html>

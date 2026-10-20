@@ -1,0 +1,347 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>視力検査の結果を良くしてあげよう</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Kosugi+Maru&display=swap">
+<style>
+/* 保健室の昼間で一つの見た目に固定：上にHUD、中央に視力検査表と先生、下に男の子と吹き出し */
+:root{
+  --wall:#d9ece3; --wall-deep:#c3ddd1; --chart:#fbfdfc; --ink:#1d2b2a; --muted:#5d716d;
+  --coral:#ef6f5a; --sun:#ffd76a; --ok:#2e9e6b;
+  --f-display:"Mochiy Pop One","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --f-body:"Kosugi Maru","Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:linear-gradient(var(--wall) 0 72%,var(--wall-deep) 72% 100%);background-color:var(--wall);color:var(--ink);
+  font-family:var(--f-body);overflow:hidden;-webkit-user-select:none;user-select:none}
+.app{height:100%;box-sizing:border-box;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.hud{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.hud .lbl{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em}
+.hud b{font-family:var(--f-display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.hud .right{text-align:right}
+.status{justify-self:center;font-size:12px;padding:6px 10px;border-radius:999px;background:var(--chart);border:2px solid var(--ink);text-align:center;transition:background .15s,color .15s}
+.status.warn{background:var(--sun)}
+.status.look{background:var(--coral);color:#fff}
+.timer{height:8px;border-radius:4px;background:rgba(29,43,42,.12);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--ink);transform-origin:left}
+.room{flex:1;min-height:0;display:flex;justify-content:center}
+#chart{width:100%;height:100%;touch-action:none;cursor:grab}
+#chart:active{cursor:grabbing}
+.boy{display:flex;align-items:center;gap:10px;min-height:76px}
+.boy svg{width:72px;height:72px;flex:none}
+.bubble{position:relative;flex:1;min-width:0;background:var(--chart);border:2px solid var(--ink);border-radius:18px;padding:10px 14px;
+  display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-size:22px;min-height:30px}
+.bubble::before{content:"";position:absolute;left:-9px;top:50%;width:14px;height:14px;background:var(--chart);border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translateY(-50%) rotate(45deg)}
+.bubble.quiet{font-family:var(--f-body);font-size:15px;color:var(--muted)}
+#arrow{width:34px;height:34px;flex:none;margin-left:auto;transition:transform .15s}
+.hint{font-size:11px;color:var(--muted);text-align:center;margin:0}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(217,236,227,.94);z-index:5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.card{max-width:340px;width:100%;display:flex;flex-direction:column;gap:12px;background:var(--chart);border:2px solid var(--ink);border-radius:16px;padding:20px;box-sizing:border-box}
+.card h1{font-family:var(--f-display);font-weight:400;font-size:26px;line-height:1.3;margin:0;text-wrap:balance}
+.card p{margin:0;font-size:14px;line-height:1.7}
+.card ul{margin:0;padding-left:1.1em;font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:4px}
+.card em{font-style:normal;color:var(--coral);font-weight:700}
+.sheet{border:2px solid var(--ink);border-radius:8px;overflow:hidden;font-size:13px}
+.sheet div{display:grid;grid-template-columns:7em 1fr;border-top:1px solid var(--ink)}
+.sheet div:first-child{border-top:0}
+.sheet span{padding:8px 10px}
+.sheet span:first-child{background:var(--wall);border-right:1px solid var(--ink)}
+.sheet .big{font-family:var(--f-display);font-size:28px;padding:4px 10px}
+.go{font-family:var(--f-display);font-size:18px;background:var(--coral);color:#fff;border:2px solid var(--ink);border-radius:999px;padding:10px 24px;cursor:pointer;align-self:flex-start;box-shadow:0 4px 0 var(--ink)}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.go:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div><span class="lbl">いま測っている視力</span><b id="cur">0.1</b></div>
+    <div class="status" id="status">先生は男の子を見ている</div>
+    <div class="right"><span class="lbl">最高記録</span><b id="best">—</b></div>
+  </header>
+  <div class="timer"><i id="tbar"></i></div>
+  <div class="room"><svg id="chart" viewBox="0 0 320 600" aria-label="視力検査表"></svg></div>
+  <div class="boy">
+    <svg viewBox="0 0 72 72" aria-hidden="true">
+      <path d="M14 70 Q14 54 36 52 Q58 54 58 70Z" fill="#5b8fd6" stroke="#1d2b2a" stroke-width="2"/>
+      <circle cx="36" cy="32" r="20" fill="#ffd9b8" stroke="#1d2b2a" stroke-width="2"/>
+      <path d="M16 28 Q18 10 36 11 Q56 11 56 28 Q48 20 38 22 Q28 18 16 28Z" fill="#2b2522"/>
+      <circle cx="44" cy="32" r="2.6" fill="#1d2b2a"/>
+      <path d="M31 42 Q36 46 41 42" fill="none" stroke="#1d2b2a" stroke-width="2" stroke-linecap="round"/>
+      <rect x="2" y="30" width="22" height="5" rx="2.5" fill="#1d2b2a" transform="rotate(-25 13 32)"/>
+      <circle cx="27" cy="31" r="9" fill="#1d2b2a"/>
+    </svg>
+    <div class="bubble quiet" id="bubble"><span id="say">（目をかくして待っている）</span>
+      <svg id="arrow" viewBox="-20 -20 40 40" hidden><path d="M-12 0H10M3 -8L11 0L3 8" fill="none" stroke="#1d2b2a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+  <p class="hint">先生が指したマークをドラッグで回す（タップで45°、←→キーでも回る）</p>
+
+  <div class="overlay" id="startOv">
+    <div class="card">
+      <h1>視力検査の結果を良くしてあげよう</h1>
+      <p>健康診断の視力検査。男の子は全然見えていないのに、てきとうに答えている。このままだと結果がひどいことになる。</p>
+      <ul>
+        <li>男の子が方向を言ったら、先生が指しているマークを<em>その方向に回して</em>あげよう。</li>
+        <li>先生がチェックするまでに合わせられたら正解。1段につき2問、両方正解で次の段へ。</li>
+        <li>先生がときどき検査表を見る。<em>見られている間に回すとバレて終了</em>。「ん？」が出たら手を止めよう。</li>
+        <li>0.7からは斜めの答えも出てくる。</li>
+      </ul>
+      <button class="go" id="startBtn">検査を始める</button>
+    </div>
+  </div>
+  <div class="overlay" id="overOv" hidden>
+    <div class="card">
+      <h1 id="oTitle">検査終了</h1>
+      <div class="sheet">
+        <div><span>項目</span><span>健康診断票</span></div>
+        <div><span>視力</span><span class="big" id="oVision">1.0</span></div>
+        <div><span>先生のひとこと</span><span id="oNote"></span></div>
+      </div>
+      <button class="go" id="retryBtn">次の子を呼ぶ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('chart');
+const $ = id => document.getElementById(id);
+const LEVELS = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.5,2.0];
+const WORDS = {0:'みぎ！',45:'みぎした！',90:'した！',135:'ひだりした！',180:'ひだり！',225:'ひだりうえ！',270:'うえ！',315:'みぎうえ！'};
+const fmt = v => v.toFixed(1);
+const norm = a => ((a % 360) + 360) % 360;
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+
+// ── 検査表を組む ──
+el('rect', {x:8, y:8, width:228, height:584, rx:8, fill:'#fbfdfc', stroke:'#1d2b2a', 'stroke-width':2}, svg);
+el('text', {x:122, y:28, 'text-anchor':'middle', 'font-size':10, fill:'#5d716d', 'font-family':'Kosugi Maru, sans-serif'}, svg).textContent = '視 力 検 査 表（5m用）';
+const band = el('rect', {x:10, y:0, width:224, height:0, fill:'#ffd76a', opacity:.35}, svg);
+function cPath(s) {
+  const r = s * 0.4, gh = Math.asin(0.25);
+  return `M${r*Math.cos(gh)} ${r*Math.sin(gh)} A${r} ${r} 0 1 1 ${r*Math.cos(-gh)} ${r*Math.sin(-gh)}`;
+}
+const rows = []; let y = 44;
+LEVELS.forEach((v, i) => {
+  const s = 64 * Math.pow(0.1 / v, 0.6);
+  const gap = Math.max(10, s * 0.55);
+  const cy = y + s / 2;
+  const n = Math.min(5, Math.floor((170 + 0.9 * s) / (1.9 * s)));
+  const totalW = n * s + (n - 1) * 0.9 * s;
+  const x0 = 52 + (170 - totalW) / 2 + s / 2;
+  el('text', {x:32, y:cy + 3.5, 'text-anchor':'middle', 'font-size':10, fill:'#5d716d', 'font-family':'Kosugi Maru, sans-serif'}, svg).textContent = fmt(v);
+  const cs = [];
+  for (let k = 0; k < n; k++) {
+    const cx = x0 + k * 1.9 * s, base = rnd([0,90,180,270]);
+    const g = el('g', {transform:`translate(${cx} ${cy}) rotate(${base})`}, svg);
+    el('path', {d:cPath(s), fill:'none', stroke:'#1d2b2a', 'stroke-width':s * 0.2}, g);
+    cs.push({g, cx, cy, s, rot:base});
+  }
+  rows.push({v, s, cy, top:y - gap / 2 + 2, h:s + gap - 4, cs});
+  y += s + gap;
+});
+const marks = el('g', {}, svg);
+// 先生と指し棒
+const pointer = el('line', {stroke:'#8a5a32', 'stroke-width':3, 'stroke-linecap':'round'}, svg);
+const teacher = el('g', {}, svg);
+el('path', {d:'M-22 60 Q-22 26 0 24 Q22 26 22 60Z', fill:'#fbfdfc', stroke:'#1d2b2a', 'stroke-width':2}, teacher);
+el('circle', {cx:0, cy:0, r:19, fill:'#ffe2c6', stroke:'#1d2b2a', 'stroke-width':2}, teacher);
+el('path', {d:'M-20 2 Q-22 -22 0 -21 Q22 -22 20 4 Q14 -10 0 -10 Q-14 -10 -20 2Z', fill:'#5a3b2e'}, teacher);
+el('circle', {cx:0, cy:-22, r:7, fill:'#5a3b2e'}, teacher);
+const eyes = el('g', {}, teacher);
+el('circle', {cx:-7, cy:2, r:2.4, fill:'#1d2b2a'}, eyes); el('circle', {cx:7, cy:2, r:2.4, fill:'#1d2b2a'}, eyes);
+el('rect', {x:-13, y:-3, width:10, height:9, rx:3, fill:'none', stroke:'#1d2b2a', 'stroke-width':1.5}, teacher);
+el('rect', {x:3, y:-3, width:10, height:9, rx:3, fill:'none', stroke:'#1d2b2a', 'stroke-width':1.5}, teacher);
+const tMouth = el('path', {d:'M-4 11 Q0 13 4 11', fill:'none', stroke:'#1d2b2a', 'stroke-width':1.6, 'stroke-linecap':'round'}, teacher);
+const tSign = el('text', {x:0, y:-34, 'text-anchor':'middle', 'font-size':16, 'font-family':'Mochiy Pop One, sans-serif', fill:'#ef6f5a'}, teacher);
+
+// ── 状態 ──
+let best = null; try { const b = localStorage.getItem('shiryoku-best'); best = b === null ? null : +b; } catch(e) {}
+$('best').textContent = best === null ? '—' : fmt(best);
+let G = null;
+const statusEl = $('status'), tbar = $('tbar'), sayEl = $('say'), bubble = $('bubble'), arrow = $('arrow');
+
+function start() {
+  $('startOv').hidden = true; $('overOv').hidden = true;
+  G = {li:0, q:0, cleared:null, phase:'idle', t:0, limit:0, active:null, answer:0,
+       teach:{state:'away', t:0, glances:[]}, dragging:false, display:0};
+  question();
+}
+function question() {
+  const row = rows[G.li];
+  marks.innerHTML = '';
+  const c = rnd(row.cs.filter(x => x !== G.active) .length ? row.cs.filter(x => x !== G.active) : row.cs);
+  G.active = c;
+  const dirs = G.li >= 6 ? [0,45,90,135,180,225,270,315] : [0,90,180,270];
+  let ans = rnd(dirs);
+  if (ans === norm(c.rot) && Math.random() < 0.85) ans = rnd(dirs.filter(d => d !== norm(c.rot)));
+  G.answer = ans; G.display = c.rot;
+  G.limit = Math.max(1.7, 4.0 - G.li * 0.2);
+  G.phase = 'think'; G.t = 0;
+  tbar.style.transform = 'scaleX(1)';
+  band.setAttribute('y', row.top); band.setAttribute('height', row.h);
+  $('cur').textContent = fmt(row.v);
+  // 先生の視線スケジュール
+  const n = G.li < 2 ? 0 : G.li < 5 ? (Math.random() < 0.6 ? 1 : 0) : (Math.random() < 0.5 ? 2 : 1);
+  const glances = [];
+  for (let i = 0; i < n; i++) glances.push(0.9 + Math.random() * Math.max(0.3, G.limit + 0.6 - 2.2));
+  glances.sort((a, b) => a - b);
+  for (let i = 1; i < glances.length; i++) if (glances[i] - glances[i-1] < 1.4) glances[i] = glances[i-1] + 1.4;
+  G.teach = {state:'away', t:0, glances: glances.filter(t => t < G.limit + 0.6 - 1.0)};
+  setBubble('えーっと…', null, true);
+}
+function setBubble(text, dir, quiet) {
+  sayEl.textContent = text; bubble.classList.toggle('quiet', !!quiet);
+  arrow.hidden = dir === null; if (dir !== null) arrow.style.transform = `rotate(${dir}deg)`;
+}
+
+function setRot(v, byUser) {
+  if (!G || !G.active) return;
+  if (byUser && G.phase !== 'answer' && G.phase !== 'think') return;
+  if (byUser && G.teach.state === 'look' && Math.abs(((v - G.active.rot) % 360 + 540) % 360 - 180) > 1.5) return caught();
+  G.active.rot = v;
+}
+function caught() {
+  G.phase = 'over';
+  el('text', {x:G.active.cx, y:G.active.cy - G.active.s * 0.8, 'text-anchor':'middle', 'font-size':16, 'font-family':'Mochiy Pop One, sans-serif', fill:'#ef6f5a'}, marks).textContent = '今、動いた！？';
+  tSign.textContent = '！？'; tMouth.setAttribute('d', 'M-4 12 Q0 8 4 12');
+  setBubble('…あっ', null, true);
+  setTimeout(() => over(true), 1300);
+}
+
+function judge() {
+  G.phase = 'judging';
+  const snap = norm(Math.round(G.active.rot / 45) * 45);
+  G.active.rot = snap;
+  const ok = snap === G.answer;
+  const c = G.active;
+  if (ok) el('circle', {cx:c.cx, cy:c.cy, r:c.s * 0.7 + 4, fill:'none', stroke:'#2e9e6b', 'stroke-width':3}, marks);
+  else {
+    const r = c.s * 0.6 + 4;
+    el('path', {d:`M${c.cx-r} ${c.cy-r}L${c.cx+r} ${c.cy+r}M${c.cx+r} ${c.cy-r}L${c.cx-r} ${c.cy+r}`, stroke:'#ef6f5a', 'stroke-width':3, 'stroke-linecap':'round'}, marks);
+  }
+  setTimeout(() => {
+    if (G.phase === 'over') return;
+    if (!ok) return over(false);
+    if (G.q === 0) { G.q = 1; return question(); }
+    G.cleared = LEVELS[G.li]; G.q = 0;
+    if (G.li === LEVELS.length - 1) return over(false);
+    G.li++; question();
+  }, 900);
+}
+function over(wasCaught) {
+  G.phase = 'over';
+  const v = G.cleared;
+  if (!wasCaught && v !== null && (best === null || v > best)) { best = v; try { localStorage.setItem('shiryoku-best', String(v)); } catch(e) {} $('best').textContent = fmt(best); }
+  $('oTitle').textContent = wasCaught ? 'ズルがバレた！' : v === 2.0 ? '視力2.0、満点！' : '検査終了';
+  $('oVision').textContent = wasCaught ? '再検査' : v === null ? '0.1未満' : fmt(v);
+  $('oNote').textContent = wasCaught ? '「マークが勝手に回るわけないでしょ。もう一回！」'
+    : v === null ? '「すぐ眼科に行こうね」'
+    : v < 0.3 ? '「黒板、見えてる？前の席にしようか」'
+    : v < 0.7 ? '「ちょっと低めだね。様子を見ようか」'
+    : v < 1.0 ? '「まあまあだね」'
+    : v < 2.0 ? '「よく見えてるね！」'
+    : '「パイロットになれるよ！」';
+  $('overOv').hidden = false;
+  setBubble('（目をかくして待っている）', null, true);
+  if (!G.sent && !wasCaught && v !== null) { G.sent = true; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
+}
+
+// ── ループ ──
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (G && (G.phase === 'think' || G.phase === 'answer')) {
+    G.t += dt;
+    if (G.phase === 'think' && G.t >= 0.6) { G.phase = 'answer'; G.t = 0; setBubble(WORDS[G.answer], G.answer, false); }
+    if (G.phase === 'answer') {
+      // 先生
+      const T = G.teach; T.t += dt;
+      const warnLen = G.li >= 8 ? 0.35 : 0.5;
+      if (T.state === 'away' && T.glances.length && G.t >= T.glances[0]) { T.state = 'warn'; T.t = 0; T.glances.shift(); }
+      else if (T.state === 'warn' && T.t >= warnLen) { T.state = 'look'; T.t = 0; }
+      else if (T.state === 'look' && T.t >= 0.85) { T.state = 'away'; T.t = 0; }
+      if (G.t >= G.limit && T.state === 'away') { G.teach.state = 'check'; judgeSoon(); }
+      tbar.style.transform = `scaleX(${Math.max(0, 1 - G.t / G.limit)})`;
+    }
+  }
+  if (G && !G.dragging && G.active && (G.phase === 'answer' || G.phase === 'think')) {
+    // ドラッグしていない時は45°刻みに吸着
+    const snap = Math.round(G.active.rot / 45) * 45;
+    G.active.rot += (snap - G.active.rot) * Math.min(1, dt * 18);
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+let judgeTimer = 0;
+function judgeSoon() { G.phase = 'checking'; setBubble(sayEl.textContent, G.answer, false); judgeTimer = setTimeout(() => { if (G.phase === 'checking') judge(); }, 450); }
+
+function render() {
+  if (!G || !G.active) { teacher.setAttribute('transform', 'translate(280 300)'); pointer.setAttribute('opacity', 0); return; }
+  const c = G.active;
+  c.g.setAttribute('transform', `translate(${c.cx} ${c.cy}) rotate(${c.rot})`);
+  const ty = Math.max(70, Math.min(520, c.cy - 10));
+  teacher.setAttribute('transform', `translate(282 ${ty})`);
+  pointer.setAttribute('opacity', 1);
+  pointer.setAttribute('x1', 262); pointer.setAttribute('y1', ty + 30);
+  pointer.setAttribute('x2', c.cx + c.s * 0.55 + 3); pointer.setAttribute('y2', c.cy + c.s * 0.55 + 3);
+  const st = G.phase === 'over' ? 'look' : G.phase === 'checking' || G.phase === 'judging' ? 'check' : G.teach.state;
+  eyes.setAttribute('transform', st === 'away' ? 'translate(1.5 2.5)' : st === 'warn' ? 'translate(-1 0)' : 'translate(-3 0)');
+  if (G.phase !== 'over') {
+    tSign.textContent = st === 'warn' ? 'ん？' : st === 'look' ? '…' : '';
+    tMouth.setAttribute('d', st === 'look' ? 'M-4 11 L4 11' : 'M-4 11 Q0 13 4 11');
+  }
+  statusEl.className = 'status' + (st === 'warn' ? ' warn' : st === 'look' ? ' look' : '');
+  statusEl.textContent = st === 'warn' ? 'ん？ 先生が振り向く' : st === 'look' ? '先生が表を見てる！動かすな'
+    : st === 'check' ? '先生がチェック中' : '先生は男の子を見ている';
+}
+
+// ── 入力 ──
+function svgPoint(e) { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); }
+let drag = null;
+svg.addEventListener('pointerdown', e => {
+  if (!G || !G.active || !(G.phase === 'answer' || G.phase === 'think')) return;
+  try { svg.setPointerCapture(e.pointerId); } catch(_) {}
+  const p = svgPoint(e), c = G.active;
+  drag = {a0: Math.atan2(p.y - c.cy, p.x - c.cx) * 180 / Math.PI, r0: c.rot, moved: 0, x:e.clientX, y:e.clientY};
+  G.dragging = true;
+});
+svg.addEventListener('pointermove', e => {
+  if (!drag || !G.dragging) return;
+  const p = svgPoint(e), c = G.active;
+  const a = Math.atan2(p.y - c.cy, p.x - c.cx) * 180 / Math.PI;
+  let d = a - drag.a0; d = ((d + 540) % 360) - 180;
+  drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y));
+  if (drag.moved > 6) { setRot(drag.r0 + d, true); drag.a0 = a; drag.r0 = G.active ? G.active.rot : 0; }
+});
+const endDrag = () => {
+  if (!drag) return;
+  if (drag.moved <= 6 && G && G.active) setRot(Math.round(G.active.rot / 45) * 45 + 45, true);
+  drag = null; if (G) G.dragging = false;
+};
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+addEventListener('keydown', e => {
+  if (!G || !G.active) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    setRot(Math.round(G.active.rot / 45) * 45 + (e.key === 'ArrowRight' ? 45 : -45), true);
+  }
+});
+$('startBtn').onclick = start;
+$('retryBtn').onclick = () => {
+  clearTimeout(judgeTimer);
+  rows.forEach(r => r.cs.forEach(c => { c.rot = rnd([0,90,180,270]); c.g.setAttribute('transform', `translate(${c.cx} ${c.cy}) rotate(${c.rot})`); }));
+  tSign.textContent = '';
+  start();
+};
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>
