@@ -73,7 +73,7 @@
     const inf = await getInfo();
     if (!inf) return; // ランキングの無いゲーム
     const sc = inf.score;
-    const r = open(`<div class="brand">GameCenterEG</div><h2>${esc(inf.title.replace(/[（(].*$/, ''))}</h2>
+    const r = open(`<div class="brand">ゲームセンターＥＧ</div><h2>${esc(inf.title.replace(/[（(].*$/, ''))}</h2>
       <div class="big">${fmt(score, sc)}</div>
       <label>ランキングに名前をのせる(12文字まで)</label>
       <input maxlength="12" placeholder="なまえ" value="${esc(loadName())}">
@@ -90,7 +90,7 @@
         const data = await res.json();
         if (!res.ok) { err.textContent = data.error || '登録できなかった'; btn.disabled = false; return; }
         saveName(name);
-        const r2 = open(`<div class="brand">GameCenterEG</div><h2>ランキング</h2>
+        const r2 = open(`<div class="brand">ゲームセンターＥＧ</div><h2>ランキング</h2>
           <p class="msg">${esc(name)} さんの自己ベストは <b>${fmt(data.best, sc)}</b>、${data.total}人中 <b>${data.rank}位</b></p>
           ${listHtml(data.ranking, sc, name)}${footer}`);
         r2.querySelector('[data-close]').onclick = close;
@@ -104,7 +104,7 @@
   async function showRanking() {
     const inf = await getInfo(true);
     if (!inf) return;
-    const r = open(`<div class="brand">GameCenterEG</div><h2>${esc(inf.title.replace(/[（(].*$/, ''))} ランキング</h2>
+    const r = open(`<div class="brand">ゲームセンターＥＧ</div><h2>${esc(inf.title.replace(/[（(].*$/, ''))} ランキング</h2>
       ${listHtml(inf.ranking.slice(0, 20), inf.score, loadName())}${footer}`);
     r.querySelector('[data-close]').onclick = close;
   }
