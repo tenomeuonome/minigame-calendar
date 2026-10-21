@@ -34,5 +34,6 @@
   {"date":"2026-11-17","title":"放水車（風を読んでビル火災を消せ）","file":"games/housuisha.html","score":{"order":"desc","unit":"点","min":0,"max":30000,"decimals":0,"label":"消火と救出の得点"}},
   {"date":"2026-11-18","title":"猫のティッシュいたずら（飼い主に見つからず散らかす）","file":"games/neko-tissue.html","score":{"order":"desc","unit":"枚","min":0,"max":500,"decimals":0,"label":"見つかるまでに散らかしたティッシュ"}},
   {"date":"2026-11-19","title":"忍者だるまさんが転んだ（すいとん・かべ隠れ・手裏剣で鬼にタッチ）","file":"games/ninja-darumasan.html","score":{"order":"desc","unit":"点","min":0,"max":30000,"decimals":0,"label":"全10ラウンドの合計点"}},
-  {"date":"2026-11-20","title":"耕運機の燃費チャレンジ（ラジコン操作で畑を耕す）","file":"games/kouunki-nenpi.html","score":{"order":"desc","unit":"マス/L","min":0,"max":15,"decimals":2,"label":"耕したマス数÷使った燃料(L)"}}
+  {"date":"2026-11-20","title":"耕運機の燃費チャレンジ（ラジコン操作で畑を耕す）","file":"games/kouunki-nenpi.html","score":{"order":"desc","unit":"マス/L","min":0,"max":15,"decimals":2,"label":"耕したマス数÷使った燃料(L)"}},
+  {"date":"2026-11-21","title":"たんぽぽの綿毛（風に乗ってどこまでも）","file":"games/tanpopo-watage.html","score":{"order":"desc","unit":"m","min":0,"max":2000,"decimals":0,"label":"飛んだ距離"}}
 ]

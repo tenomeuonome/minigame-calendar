@@ -62,11 +62,23 @@
   }
   function close() { host?.remove(); host = root = null; }
 
+  // プレイ中もずっと見える「トップへ」ボタン
+  const homeHost = document.createElement('div');
+  homeHost.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:2147483000';
+  const homeRoot = homeHost.attachShadow({ mode: 'open' });
+  homeRoot.innerHTML = `<style>
+    a{display:flex;align-items:center;gap:4px;font:700 13px "Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+      background:rgba(20,20,30,.72);color:#fff;text-decoration:none;border-radius:999px;padding:8px 14px;
+      box-shadow:0 2px 10px rgba(0,0,0,.3)}
+    a:active{background:rgba(20,20,30,.9)}
+  </style><a href="/" target="_top">🏠 トップへ</a>`;
+  (document.body || document.documentElement).appendChild(homeHost);
+
   function listHtml(list, sc, myName) {
     if (!list.length) return '<div class="empty">まだだれも登録していないよ</div>';
     return '<ol>' + list.map(r => `<li class="${r.name === myName ? 'me' : ''}"><span class="r">${r.rank}位</span><span class="n">${esc(r.name)}</span><span>${fmt(r.score, sc)}</span></li>`).join('') + '</ol>';
   }
-  const footer = `<div class="row"><button class="sec" data-close>閉じる</button><a class="btn pri" href="/" target="_top">ほかのゲームへ</a></div>`;
+  const footer = `<div class="row"><button class="sec" data-close>閉じる</button><a class="btn pri" href="/" target="_top">🏠 トップページに戻る</a></div>`;
 
   async function submitScore(score) {
     if (!GAME) return;
@@ -78,7 +90,8 @@
       <label>ランキングに名前をのせる(12文字まで)</label>
       <input maxlength="12" placeholder="なまえ" value="${esc(loadName())}">
       <div class="err"></div>
-      <div class="row"><button class="sec" data-close>のせない</button><button class="pri" data-send>登録する</button></div>`);
+      <div class="row"><button class="sec" data-close>のせない</button><button class="pri" data-send>登録する</button></div>
+      <div style="text-align:center;margin-top:10px"><a href="/" target="_top" style="font-size:12px;color:#7a6ff0;text-decoration:none">🏠 トップページに戻る</a></div>`);
     const input = r.querySelector('input'), err = r.querySelector('.err'), btn = r.querySelector('[data-send]');
     r.querySelector('[data-close]').onclick = close;
     const sendIt = async () => {

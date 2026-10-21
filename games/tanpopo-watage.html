@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>たんぽぽの綿毛</title>
+<style>
+  body { margin:0; background:#cfe8f5; color:#2a3a4a; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:760px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wetWrap { width:120px; height:10px; background:#9ab; border-radius:6px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:6px; }
+  #wetBar { height:100%; width:0%; background:#3a7adb; }
+  #wrap { position:relative; }
+  canvas { background:#aee0f5; border:3px solid #5a9ac0; border-radius:10px; display:block; touch-action:none; }
+  #ctl { display:flex; flex-direction:column; gap:8px; margin-top:12px; align-items:center; }
+  #ctl button { font-size:22px; width:90px; height:48px; border-radius:10px; border:none; background:#5a9ac0; color:#fff; cursor:pointer; user-select:none; touch-action:none; }
+  #ctl button:active { background:#7ab8dc; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.78); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; color:#fff; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:760px; font-size:13px; color:#3a5a70; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🌼 たんぽぽの綿毛</h1>
+  <div id="hud">
+    <div>飛んだ距離: <span id="dist">0</span>m</div>
+    <div id="windFlag" style="visibility:hidden;">🌬️ 風に乗ってる！</div>
+    <div>濡れ度: <span id="wetWrap"><span id="wetBar"></span></span></div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="760" height="420"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="ctl">
+    <button id="btnUp">▲</button>
+    <button id="btnDown">▼</button>
+  </div>
+  <div id="help">
+    ▲▼(矢印キー↑↓でもOK)で上下に動く。何もしないと綿毛は少しずつ沈んでいくので、
+    <b>青い帯(上昇気流)</b>に入って風に乗ると高く・速く飛べる。雨に当たると重くなって沈みやすくなり(濡れ度が満タンで墜落)、
+    クモの巣に触れると即アウト。地面に落ちるまでにできるだけ遠くへ飛ぼう。
+  </div>
+
+<script>
+const W = 760, H = 420;
+const GROUND_Y = H - 28, TOP_Y = 14;
+const PLAYER_R = 13;
+const BASE_SCROLL = 2.6;
+
+let state = {};
+let input = { up:false, down:false };
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    py: H / 2, vy: 0, distance: 0, wetness: 0, running: true,
+    rain: [], webs: [], winds: [],
+    rainTimer: 40, webTimer: 200, windTimer: 150,
+    inWind: false,
+  };
+  updateHud();
+  render();
+}
+
+function updateHud() {
+  document.getElementById('dist').textContent = Math.floor(state.distance);
+  document.getElementById('wetBar').style.width = state.wetness + '%';
+  document.getElementById('windFlag').style.visibility = state.inWind ? 'visible' : 'hidden';
+}
+
+function bindHold(el, onFlag) {
+  const set = v => e => { e.preventDefault(); onFlag(v); };
+  el.addEventListener('pointerdown', set(true));
+  el.addEventListener('pointerup', set(false));
+  el.addEventListener('pointercancel', set(false));
+  el.addEventListener('pointerleave', set(false));
+}
+bindHold(document.getElementById('btnUp'), v => input.up = v);
+bindHold(document.getElementById('btnDown'), v => input.down = v);
+
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+  if (e.key === 'ArrowUp' || e.key === 'w') input.up = true;
+  if (e.key === 'ArrowDown' || e.key === 's') input.down = true;
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp' || e.key === 'w') input.up = false;
+  if (e.key === 'ArrowDown' || e.key === 's') input.down = false;
+});
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function spawnRain() {
+  state.rain.push({ x: W + Math.random() * 60, y: TOP_Y + Math.random() * (H * 0.55), vy: 2.0 + Math.random() * 0.8 });
+}
+function spawnWeb() {
+  const y = TOP_Y + 50 + Math.random() * (GROUND_Y - TOP_Y - 100);
+  state.webs.push({ x: W + 40, y, r: 24 });
+}
+function spawnWind() {
+  const bandH = 110 + Math.random() * 60;
+  const yTop = TOP_Y + Math.random() * (GROUND_Y - TOP_Y - bandH);
+  state.winds.push({ x: W + 20, width: 95, yTop, yBottom: yTop + bandH, phase: Math.random() * Math.PI * 2 });
+}
+
+function update() {
+  if (!state.running) return;
+
+  const scrollSpeed = Math.min(5.5, BASE_SCROLL + state.distance * 0.0015);
+
+  // 風帯との重なり判定(プレイヤーは x 固定のところにいる扱い)
+  const px = 150;
+  state.inWind = state.winds.some(w => px > w.x - w.width / 2 && px < w.x + w.width / 2 && state.py > w.yTop && state.py < w.yBottom);
+
+  let targetVy = 0;
+  if (input.up) targetVy -= 1.9;
+  if (input.down) targetVy += 2.3;
+  const heavy = 1 + (state.wetness / 100) * 2.2;
+  if (!input.up && !input.down) targetVy += 0.32 * heavy;
+  else targetVy *= (input.up ? 1 : heavy);
+  if (state.inWind) targetVy -= 2.6;
+  state.vy += (targetVy - state.vy) * 0.12;
+  state.py = clamp(state.py + state.vy, TOP_Y, GROUND_Y - PLAYER_R);
+
+  state.wetness = Math.max(0, state.wetness - 0.045);
+
+  state.distance += scrollSpeed * 0.055 * (state.inWind ? 1.8 : 1);
+
+  // スポーン
+  state.rainTimer--; state.webTimer--; state.windTimer--;
+  if (state.rainTimer <= 0) { spawnRain(); state.rainTimer = 30 + Math.random() * 35; }
+  if (state.webTimer <= 0) { spawnWeb(); state.webTimer = 180 + Math.random() * 120; }
+  if (state.windTimer <= 0) { spawnWind(); state.windTimer = 140 + Math.random() * 90; }
+
+  // 雨
+  for (let i = state.rain.length - 1; i >= 0; i--) {
+    const r = state.rain[i];
+    r.x -= scrollSpeed * 0.4;
+    r.y += r.vy;
+    if (r.x < -20 || r.y > GROUND_Y) { state.rain.splice(i, 1); continue; }
+    const dx = r.x - px, dy = r.y - state.py;
+    if (dx * dx + dy * dy < (PLAYER_R + 5) * (PLAYER_R + 5)) {
+      state.wetness = Math.min(100, state.wetness + 16);
+      state.rain.splice(i, 1);
+    }
+  }
+
+  // クモの巣
+  for (let i = state.webs.length - 1; i >= 0; i--) {
+    const w = state.webs[i];
+    w.x -= scrollSpeed;
+    if (w.x < -40) { state.webs.splice(i, 1); continue; }
+    const dx = w.x - px, dy = w.y - state.py;
+    if (dx * dx + dy * dy < (PLAYER_R + w.r - 10) * (PLAYER_R + w.r - 10)) {
+      return endGame('🕸️ クモの巣に絡まった！');
+    }
+  }
+
+  // 風帯
+  for (let i = state.winds.length - 1; i >= 0; i--) {
+    const w = state.winds[i];
+    w.x -= scrollSpeed;
+    w.phase += 0.15;
+    if (w.x < -w.width - 20) state.winds.splice(i, 1);
+  }
+
+  if (state.wetness >= 100) return endGame('💧 濡れて重くなり墜落…');
+  if (state.py >= GROUND_Y - PLAYER_R - 1) return endGame('🌱 地面に落ちた');
+
+  updateHud();
+  render();
+}
+
+function endGame(title) {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgText').textContent = `飛んだ距離: ${Math.floor(state.distance)}m`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(Math.floor(state.distance)), 1200);
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const px = 150;
+
+  ctx.clearRect(0, 0, W, H);
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#9fd6f2'); sky.addColorStop(1, '#d8f0f8');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, GROUND_Y);
+  ctx.fillStyle = '#6ab04a'; ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // 風帯
+  state.winds.forEach(w => {
+    ctx.fillStyle = 'rgba(160,220,255,0.45)';
+    ctx.fillRect(w.x - w.width / 2, w.yTop, w.width, w.yBottom - w.yTop);
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 2;
+    for (let yy = w.yBottom - 10; yy > w.yTop; yy -= 26) {
+      const off = ((yy + w.phase * 10) % 26);
+      ctx.beginPath();
+      ctx.moveTo(w.x - 10, yy - off);
+      ctx.lineTo(w.x, yy - off - 10);
+      ctx.lineTo(w.x + 10, yy - off);
+      ctx.stroke();
+    }
+  });
+
+  // 雨
+  ctx.strokeStyle = '#3a7adb'; ctx.lineWidth = 2;
+  state.rain.forEach(r => {
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(r.x - 3, r.y - 10);
+    ctx.stroke();
+  });
+
+  // クモの巣
+  state.webs.forEach(w => {
+    ctx.strokeStyle = 'rgba(230,230,230,0.9)'; ctx.lineWidth = 1.5;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+      ctx.beginPath();
+      ctx.moveTo(w.x, w.y);
+      ctx.lineTo(w.x + Math.cos(a) * w.r, w.y + Math.sin(a) * w.r);
+      ctx.stroke();
+    }
+    for (let rr = w.r * 0.35; rr <= w.r; rr += w.r * 0.32) {
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, rr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  });
+
+  // たんぽぽの綿毛(プレイヤー)
+  ctx.save();
+  ctx.translate(px, state.py);
+  ctx.fillStyle = '#8a6a3a';
+  ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.2;
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6;
+    const len = PLAYER_R;
+    const tx = Math.cos(a) * len, ty = Math.sin(a) * len;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(tx, ty); ctx.stroke();
+    ctx.beginPath(); ctx.arc(tx, ty, 1.6, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+  }
+  ctx.restore();
+}
+
+setInterval(update, 1000 / 30);
+resetGame();
+</script>
+</body>
+</html>
