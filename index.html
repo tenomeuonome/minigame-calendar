@@ -135,7 +135,8 @@ function selectDay(ds) {
   renderToday(); renderCal();
   // スマホでは枠が画面の外にあることが多いので、見える位置まで戻す
   const box = document.getElementById('todayBox');
-  if (box.getBoundingClientRect().top < 0) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const top = box.getBoundingClientRect().top;
+  if (top < 0) window.scrollTo(0, top + window.scrollY - 12);
 }
 
 function renderCal() {
