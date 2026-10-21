@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>猫のティッシュいたずら</title>
+<style>
+  body { margin:0; background:#3a2a3a; color:#f5e9f5; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:700px; max-width:100%; margin-bottom:8px; font-size:14px; }
+  #wrap { position:relative; }
+  canvas { background:#fdf2e9; border:3px solid #8a5a7a; border-radius:10px; display:block; }
+  #pullBtn { margin-top:12px; font-size:17px; padding:14px 40px; border-radius:12px; border:none; background:#e06090; color:#fff; cursor:pointer; font-weight:bold; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.78); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:26px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#e06090; color:#fff; cursor:pointer; }
+  #help { max-width:700px; font-size:13px; color:#d8b8d8; margin-top:10px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🐈 猫のティッシュいたずら</h1>
+  <div id="hud">
+    <div>散らかしたティッシュ: <span id="score">0</span>枚</div>
+    <div id="status">😼 飼い主はよそ見中</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="700" height="360"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <button id="pullBtn" onclick="pull()">🐾 ティッシュを引っ張る</button>
+  <div id="help">
+    飼い主がよそ見をしている間だけ「引っ張る」を押してティッシュを散らかそう。<br>
+    「もうすぐこっちを見そう…」の予兆が出たら要注意。見られている間に引っ張ると即アウト。
+  </div>
+
+<script>
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    score: 0, owner: 'away', timer: 90, running: true, tissues: [],
+  };
+  scheduleNext();
+}
+
+function scheduleNext() {
+  if (state.owner === 'away') state.timer = 50 + Math.random() * 80;
+  else if (state.owner === 'telegraph') state.timer = 30;
+  else state.timer = 60 + Math.random() * 60;
+}
+
+function pull() {
+  if (!state.running) return;
+  if (state.owner === 'watching') {
+    return endGame();
+  }
+  state.score++;
+  document.getElementById('score').textContent = state.score;
+  state.tissues.push({
+    x: 320 + Math.random() * 300,
+    y: 220 + Math.random() * 110,
+    rot: Math.random() * 360,
+  });
+  render();
+}
+
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); pull(); } });
+
+function update() {
+  if (!state.running) return;
+  state.timer--;
+  if (state.timer <= 0) {
+    if (state.owner === 'away') state.owner = 'telegraph';
+    else if (state.owner === 'telegraph') state.owner = 'watching';
+    else state.owner = 'away';
+    scheduleNext();
+  }
+  const statusEl = document.getElementById('status');
+  if (state.owner === 'away') statusEl.textContent = '😼 飼い主はよそ見中';
+  else if (state.owner === 'telegraph') statusEl.textContent = '🙂‍↕️ もうすぐこっちを見そう…';
+  else statusEl.textContent = '😠 飼い主がこっちを見てる！';
+  render();
+}
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '😾 見つかった！';
+  document.getElementById('msgText').textContent = `散らかしたティッシュ: ${state.score}枚`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // 床の散らかったティッシュ
+  state.tissues.forEach(t => {
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.rotate(t.rot * Math.PI / 180);
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#ccc';
+    ctx.fillRect(-18, -12, 36, 24);
+    ctx.strokeRect(-18, -12, 36, 24);
+    ctx.restore();
+  });
+
+  // ティッシュ箱
+  ctx.fillStyle = '#e8a0c0';
+  ctx.fillRect(60, 160, 100, 70);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(90, 150, 40, 14);
+
+  // 猫
+  ctx.font = '48px sans-serif';
+  ctx.fillText('🐈', 70, 150);
+
+  // 飼い主
+  ctx.font = '42px sans-serif';
+  const face = state.owner === 'away' ? '🧍' : state.owner === 'telegraph' ? '🙂‍↕️' : '😠';
+  ctx.fillText(face, W - 90, 90);
+}
+
+setInterval(update, 1000/30);
+resetGame();
+</script>
+</body>
+</html>

@@ -27,5 +27,8 @@
   {"date":"2026-11-10","title":"ソフトクリーム巻き（円を描いてどこまで高く積めるか）","file":"games/soft-cream.html","score":{"order":"desc","unit":"段","min":0,"max":200,"decimals":0,"label":"崩れるまでに積んだ段数"}},
   {"date":"2026-11-11","title":"雑巾がけ競争（左右交互連打で廊下を走る）","file":"games/zoukingake.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"ゴールタイムか到達距離のスコア"}},
   {"date":"2026-11-12","title":"バランス綱渡り（左右ボタンで倒れずに進む）","file":"games/balance-walk.html","score":{"order":"desc","unit":"m","min":0,"max":2000,"decimals":0,"label":"落ちるまでに進んだ距離"}},
-  {"date":"2026-11-13","title":"テーブルクロス引き（力加減で食器を落とさず引き抜く）","file":"games/table-cloth.html","score":{"order":"desc","unit":"点","min":0,"max":500,"decimals":0,"label":"成功ラウンドと最終品数のスコア"}}
+  {"date":"2026-11-13","title":"テーブルクロス引き（力加減で食器を落とさず引き抜く）","file":"games/table-cloth.html","score":{"order":"desc","unit":"点","min":0,"max":500,"decimals":0,"label":"成功ラウンドと最終品数のスコア"}},
+  {"date":"2026-11-14","title":"セミ時雨でストレスを（鳴いて木を移動・裏に隠れて逃げる）","file":"games/semi-naki.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"捕まるまでに与えたストレス度"}},
+  {"date":"2026-11-15","title":"ひらがなブロック（タテヨコで単語をそろえて消す）","file":"games/hiragana-block.html","score":{"order":"desc","unit":"点","min":0,"max":9000,"decimals":0,"label":"単語成立と連鎖の合計スコア"}},
+  {"date":"2026-11-16","title":"猫のティッシュいたずら（飼い主に見つからず散らかす）","file":"games/neko-tissue.html","score":{"order":"desc","unit":"枚","min":0,"max":500,"decimals":0,"label":"見つかるまでに散らかしたティッシュ"}}
 ]
