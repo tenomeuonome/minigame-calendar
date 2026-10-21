@@ -30,8 +30,8 @@
   {"date":"2026-11-13","title":"テーブルクロス引き（力加減で食器を落とさず引き抜く）","file":"games/table-cloth.html","score":{"order":"desc","unit":"点","min":0,"max":500,"decimals":0,"label":"成功ラウンドと最終品数のスコア"}},
   {"date":"2026-11-14","title":"セミ時雨でストレスを（鳴いて木を移動・裏に隠れて逃げる）","file":"games/semi-naki.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"捕まるまでに与えたストレス度"}},
   {"date":"2026-11-15","title":"ひらがなブロック（タテヨコで単語をそろえて消す）","file":"games/hiragana-block.html","score":{"order":"desc","unit":"点","min":0,"max":9000,"decimals":0,"label":"単語成立と連鎖の合計スコア"}},
-  {"date":"2026-11-16","title":"猫のティッシュいたずら（飼い主に見つからず散らかす）","file":"games/neko-tissue.html","score":{"order":"desc","unit":"枚","min":0,"max":500,"decimals":0,"label":"見つかるまでに散らかしたティッシュ"}},
+  {"date":"2026-11-16","title":"車窓の忍者（電車の窓の外を走る忍者ラン）","file":"games/shasou-ninja.html","score":{"order":"desc","unit":"点","min":0,"max":80000,"decimals":0,"label":"走行距離＋巻物ボーナス"}},
   {"date":"2026-11-17","title":"放水車（風を読んでビル火災を消せ）","file":"games/housuisha.html","score":{"order":"desc","unit":"点","min":0,"max":30000,"decimals":0,"label":"消火と救出の得点"}},
-  {"date":"2026-11-18","title":"車窓の忍者（電車の窓の外を走る忍者ラン）","file":"games/shasou-ninja.html","score":{"order":"desc","unit":"点","min":0,"max":80000,"decimals":0,"label":"走行距離＋巻物ボーナス"}},
+  {"date":"2026-11-18","title":"猫のティッシュいたずら（飼い主に見つからず散らかす）","file":"games/neko-tissue.html","score":{"order":"desc","unit":"枚","min":0,"max":500,"decimals":0,"label":"見つかるまでに散らかしたティッシュ"}},
   {"date":"2026-11-19","title":"忍者だるまさんが転んだ（すいとん・かべ隠れ・手裏剣で鬼にタッチ）","file":"games/ninja-darumasan.html","score":{"order":"desc","unit":"点","min":0,"max":30000,"decimals":0,"label":"全10ラウンドの合計点"}}
 ]
