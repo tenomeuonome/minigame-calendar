@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>壁ドン・ラン</title>
+<style>
+  body { margin:0; background:#2b2440; color:#f0ecff; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:800px; max-width:100%; margin-bottom:8px; font-size:14px; }
+  #distBar { width:800px; max-width:100%; height:10px; background:#1c1830; border-radius:5px; overflow:hidden; margin-bottom:8px; }
+  #distFill { height:100%; width:0%; background:linear-gradient(90deg,#ff7ab8,#ffd24a); }
+  #wrap { position:relative; }
+  canvas { background:#3a3160; border:3px solid #5a4a8a; border-radius:10px; display:block; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.78); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:26px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#ff7ab8; color:#fff; cursor:pointer; }
+  #help { max-width:800px; font-size:13px; color:#cabfe8; margin-top:10px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>💘 壁ドン・ラン</h1>
+  <div id="hud">
+    <div>ライフ: <span id="lives">❤️❤️❤️</span></div>
+    <div>壁ドン成功: <span id="kabedon">0</span></div>
+  </div>
+  <div id="distBar"><div id="distFill"></div></div>
+  <div id="wrap">
+    <canvas id="game" width="800" height="460"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    上下キー/WASDでレーンを切り替えて、通行人(🧍)を避けながら壁へ向かって進む。<br>
+    ピンクの的(💘)と同じレーンで重なった瞬間にスペースを押すと「壁ドン成功」でボーナス。ぶつかるとライフが減る。
+  </div>
+
+<script>
+const LANES = [110, 250, 390];
+const PLAYER_X = 110;
+const FINISH_DIST = 3000;
+
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    lane: 1, lives: 3, dist: 0, speed: 2.4, kabedonCount: 0,
+    obstacles: [], spawnTimer: 60, keys: {}, running: true,
+  };
+  render();
+}
+
+document.addEventListener('keydown', e => {
+  state.keys[e.key] = true;
+  if (e.key === 'ArrowUp' || e.key === 'w') state.lane = Math.max(0, state.lane - 1);
+  if (e.key === 'ArrowDown' || e.key === 's') state.lane = Math.min(2, state.lane + 1);
+  if (e.code === 'Space') { e.preventDefault(); tryKabedon(); }
+});
+
+function spawnObstacle() {
+  const isTarget = Math.random() < 0.3;
+  state.obstacles.push({
+    lane: Math.floor(Math.random() * 3),
+    x: 820,
+    target: isTarget,
+    resolved: false,
+  });
+}
+
+function tryKabedon() {
+  for (const o of state.obstacles) {
+    if (o.target && !o.resolved && o.lane === state.lane && Math.abs(o.x - PLAYER_X) < 40) {
+      o.resolved = true;
+      state.kabedonCount++;
+      document.getElementById('kabedon').textContent = state.kabedonCount;
+      state.dist += 80;
+    }
+  }
+}
+
+function update() {
+  if (!state.running) return;
+  state.dist += state.speed;
+  state.speed = Math.min(5, 2.4 + state.dist / 1500);
+
+  state.spawnTimer--;
+  if (state.spawnTimer <= 0) {
+    spawnObstacle();
+    state.spawnTimer = Math.max(28, 55 - state.dist / 80);
+  }
+
+  for (let i = state.obstacles.length - 1; i >= 0; i--) {
+    const o = state.obstacles[i];
+    o.x -= state.speed;
+    if (!o.resolved && !o.target && o.lane === state.lane && Math.abs(o.x - PLAYER_X) < 22) {
+      o.resolved = true;
+      state.lives--;
+      document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0, state.lives)) + '🖤'.repeat(3 - Math.max(0, state.lives));
+      if (state.lives <= 0) { render(); return endGame(false); }
+    }
+    if (o.x < -40) state.obstacles.splice(i, 1);
+  }
+
+  document.getElementById('distFill').style.width = Math.min(100, state.dist / FINISH_DIST * 100) + '%';
+  if (state.dist >= FINISH_DIST) { render(); return endGame(true); }
+  render();
+}
+
+function endGame(reachedWall) {
+  state.running = false;
+  const score = Math.round(state.dist) + state.kabedonCount * 80 + state.lives * 100;
+  document.getElementById('msgTitle').textContent = reachedWall ? '💥 壁ドン！ゴール！' : '😵 力尽きた…';
+  document.getElementById('msgText').textContent = `進んだ距離: ${Math.round(state.dist)}\n壁ドン成功: ${state.kabedonCount}回\nスコア: ${score}`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(score), 1200);
+}
+
+function draw() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  LANES.forEach(y => {
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath(); ctx.moveTo(0, y + 40); ctx.lineTo(W, y + 40); ctx.stroke();
+  });
+
+  ctx.font = '36px sans-serif';
+  for (const o of state.obstacles) {
+    if (o.resolved) continue;
+    ctx.fillText(o.target ? '💘' : '🧍', o.x - 18, LANES[o.lane] + 14);
+  }
+
+  ctx.font = '38px sans-serif';
+  ctx.fillText('🏃', PLAYER_X - 19, LANES[state.lane] + 14);
+
+  ctx.fillStyle = '#5a4a8a';
+  ctx.fillRect(W - 30, 0, 30, H);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+resetGame();
+loop();
+</script>
+</body>
+</html>
