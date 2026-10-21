@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>車窓の忍者</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{height:100%;overflow:hidden;background:#3b2a20;touch-action:none;overscroll-behavior:none}
+body{font-family:'M PLUS Rounded 1c',sans-serif;color:#fff;display:flex;justify-content:center}
+#app{width:100%;max-width:520px;height:100%;display:flex;flex-direction:column;padding:10px 12px 0;background:linear-gradient(#5a6b4e,#46563c 40%,#3d4b34)}
+#led{height:30px;flex:none;background:#111;border:2px solid #333;border-radius:6px;overflow:hidden;position:relative;margin-bottom:8px;box-shadow:inset 0 0 8px #000}
+#ledtxt{position:absolute;white-space:nowrap;top:3px;font:16px 'Dela Gothic One',sans-serif;color:#ffb020;text-shadow:0 0 6px #ff8a00;animation:mq 9s linear infinite;letter-spacing:2px}
+@keyframes mq{from{transform:translateX(480px)}to{transform:translateX(-110%)}}
+#win{flex:1;position:relative;border-radius:22px;overflow:hidden;border:10px solid #c9bfa6;box-shadow:0 0 0 3px #8d846e,inset 0 0 0 2px #7a725e,0 6px 18px #0008;background:#7ec8f0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#glass{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 18%,rgba(255,255,255,.13) 22%,transparent 27%,transparent 58%,rgba(255,255,255,.08) 61%,transparent 66%)}
+#refl{position:absolute;right:8%;bottom:16%;font-size:110px;opacity:0;pointer-events:none;filter:grayscale(1) blur(1px);transform:scaleX(-1)}
+#hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:10px 12px;pointer-events:none;font-weight:800;text-shadow:0 2px 3px #0009}
+#hud .b{background:rgba(0,0,0,.35);border-radius:10px;padding:3px 10px;font-size:15px}
+#hud .big{font:22px 'Dela Gothic One',sans-serif}
+#msg{position:absolute;left:0;right:0;top:30%;text-align:center;font:28px 'Dela Gothic One',sans-serif;pointer-events:none;text-shadow:0 3px 0 #000,0 0 12px #000;opacity:0;transition:opacity .3s}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(20,18,30,.72);padding:20px;text-align:center}
+.hide{display:none!important}
+h1{font:34px/1.2 'Dela Gothic One',sans-serif;color:#ffe08a;text-shadow:0 4px 0 #a33,0 0 18px #000}
+.sub{font-size:13px;color:#ddd}
+.rules{background:rgba(255,255,255,.1);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.75;text-align:left}
+.btn{font:20px 'Dela Gothic One',sans-serif;color:#fff;background:linear-gradient(#e84a3c,#b8291e);border:none;border-radius:40px;padding:14px 40px;box-shadow:0 5px 0 #6e1710;cursor:pointer}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #6e1710}
+#rsc{font:52px 'Dela Gothic One',sans-serif;color:#ffe08a}
+#rdet{font-size:15px;line-height:1.8}
+#rrank{font:20px 'Dela Gothic One',sans-serif;color:#9fe3ff}
+#sill{height:46px;flex:none;margin:0 -12px;background:linear-gradient(#a8957a,#7d6b55);border-top:4px solid #c8b598;display:flex;align-items:center;justify-content:center;gap:36px;font-size:26px}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="led"><span id="ledtxt">ご乗車ありがとうございます　車窓の忍者号　発車いたします</span></div>
+ <div id="win">
+  <canvas id="c"></canvas>
+  <div id="refl">🧒</div>
+  <div id="glass"></div>
+  <div id="hud"><div class="b"><span class="big" id="hd">0</span> m</div><div class="b">📜 <span id="hs">0</span></div><div class="b"><span id="hk">0</span> km/h</div></div>
+  <div id="msg"></div>
+  <div class="ov" id="title">
+   <h1>車窓の忍者</h1>
+   <div class="sub">― あの日、窓の外を走っていたのは ―</div>
+   <div class="rules">
+    🥷 窓の外を忍者が走る！<br>
+    👆 タップでジャンプ（長押しで高く）<br>
+    ✨ 空中でもう一度タップで二段跳び<br>
+    ⚡ 電柱・家の壁・川に当たるとおしまい<br>
+    🚉 駅では列車がゆっくり。巻物📜を集めよう<br>
+    🌑 トンネルは真っ暗。目印の灯りを頼りに
+   </div>
+   <button class="btn" id="bs">出発進行！</button>
+  </div>
+  <div class="ov hide" id="result">
+   <div class="sub" id="rcause"></div>
+   <div>スコア</div>
+   <div id="rsc">0</div>
+   <div id="rdet"></div>
+   <div id="rrank"></div>
+   <button class="btn" id="br">もう一度乗る</button>
+  </div>
+ </div>
+ <div id="sill"><span>🍱</span><span>🍵</span><span>🍊</span></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const C=$('c'),X=C.getContext('2d'),win=$('win');
+let W=300,H=500,GY=370,NX=80;
+function rs(){const r=win.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);W=Math.max(100,r.width-20);H=Math.max(200,r.height-20);C.width=W*d;C.height=H*d;X.setTransform(d,0,0,d,0,0);GY=Math.round(H*.74);NX=Math.round(W*.27)}
+addEventListener('resize',rs);rs();
+const R=Math.random,hash=i=>{const s=Math.sin(i*127.1+311.7)*43758.5453;return s-Math.floor(s)};
+const ST=['しのび','かげぬい','いなほ','くもがくれ','すいとん','ゆうやけ','やまびこ','てんぐ'];
+let st='title',t=0,cam=0,spd=0,mult=1,multT=1,dist=0,py=0,vy=0,onG=true,lastG=0,dbl=false,hold=false,holdT=0,spin=0;
+let obs=[],items=[],parts=[],pops=[],scrolls=0,nextSpawn=0,spawnOn=true,ev=null,nextEv=0,evN=0,dark=0,darkT=0,plat=null,shake=0,deadT=0,cause='',submitted=true,score=0,resT=0;
+function led(s){const e=$('ledtxt');e.textContent=s;e.style.animation='none';e.offsetWidth;e.style.animation=''}
+let msgTo=0;function msg(s){const e=$('msg');e.textContent=s;e.style.opacity=1;clearTimeout(msgTo);msgTo=setTimeout(()=>e.style.opacity=0,1300)}
+function start(){rs();st='play';t=0;cam=0;dist=0;mult=multT=1;py=GY;vy=0;onG=true;dbl=false;hold=false;spin=0;obs=[];items=[];parts=[];pops=[];scrolls=0;nextSpawn=W+200;spawnOn=true;ev=null;nextEv=9+R()*3;evN=0;dark=darkT=0;plat=null;shake=0;submitted=false;
+ $('title').classList.add('hide');$('result').classList.add('hide');led('発車いたします　窓の外にご注目ください');msg('出発進行！')}
+function base(){return Math.min(780,300+t*7)}
+function addPole(x,h){obs.push({k:'p',x,w:10,h})}
+function spawn(){
+ const d=Math.min(1,t/75),s=base();let x=nextSpawn,end;const r=R();
+ if(d>.3&&r<.22){const n=2+(R()<d?1:0),gap=s*(.82+R()*.12);for(let i=0;i<n;i++)addPole(x+i*gap,60+R()*25+d*12);end=x+(n-1)*gap+10;if(R()<.5)items.push({x:x+gap*.5,y:GY-130,b:R()*6})}
+ else if(r<.5){const h=55+R()*30+d*15;addPole(x,h);end=x+10;if(R()<.4)items.push({x:x+5,y:GY-h-45,b:R()*6})}
+ else if(r<.75){const w=110+R()*100,h=45+R()*35+d*28;obs.push({k:'h',x,w,h,c:Math.floor(R()*4)});end=x+w;if(R()<.4)items.push({x:x+w/2,y:GY-h-40,b:R()*6})}
+ else{const w=Math.min(70+R()*(50+d*90),s*.55+30);obs.push({k:'g',x,w,h:0});end=x+w;if(R()<.35)items.push({x:x+w/2,y:GY-120,b:R()*6})}
+ nextSpawn=end+s*((1.15-.4*d)+R()*.8*(1-.4*d))
+}
+function press(){if(st!=='play')return;
+ if(onG||t-lastG<.08){vy=-720;onG=false;hold=true;holdT=0;lastG=-9;burst(NX,py,'#cbb',6)}
+ else if(!dbl){dbl=true;vy=-650;hold=true;holdT=.1;spin=1;burst(NX,py-15,'#fff',8)}}
+function burst(x,y,c,n){for(let i=0;i<n;i++)parts.push({x,y,vx:(R()-.5)*220,vy:-R()*200,l:.5,c})}
+function die(c){if(st!=='play')return;st='dead';cause=c;deadT=0;vy=-480;multT=0;shake=12;burst(NX,py-20,'#f44',18)}
+function update(dt){
+ if(st==='title'||st==='over'){cam+=110*dt;dark+=(0-dark)*dt*3;return}
+ t+=dt;mult+=(multT-mult)*Math.min(1,dt*(st==='dead'?4:1.1));spd=base()*mult;cam+=spd*dt;
+ if(st==='play')dist+=spd*dt;
+ dark+=(darkT-dark)*Math.min(1,dt*5);shake*=.88;
+ if(st==='play'){
+  if(!ev&&t>=nextEv-2.2){evN++;ev={k:evN%3===2?'s':'t',ph:0,t:0};if(ev.k==='t')led('まもなく　トンネルに入ります　灯りを頼りに進め');else{ev.n=ST[Math.floor(R()*ST.length)];led('次は　'+ev.n+'駅　'+ev.n+'駅です');spawnOn=false}}
+  if(ev){ev.t+=dt;
+   if(ev.k==='t'){if(ev.ph===0&&ev.t>2.2){ev.ph=1;ev.t=0;darkT=1;msg('トンネル！')}
+    else if(ev.ph===1&&ev.t>3+Math.min(2.5,t/40)){darkT=0;ev=null;nextEv=t+8+R()*5;led('トンネルを抜けました　沿線の景色をお楽しみください')}}
+   else{if(ev.ph===0&&onG&&!obs.some(o=>o.x+o.w>cam+NX-40)){const s=base();plat={x:cam+W+20,len:W+s*3.2+400,n:ev.n};ev.ph=1;ev.t=0;multT=.38;
+     for(let i=0;i<6;i++)items.push({x:plat.x+180+i*130,y:GY-50-(i%3)*45,b:i});nextSpawn=Math.max(nextSpawn,plat.x+plat.len+s*.5)}
+    else if(ev.ph===1){if(ev.t>.8&&ev.t<.9+dt)led(ev.n+'駅に停車中　巻物を集めろ！');if(ev.t>5.5){multT=1;spawnOn=true;ev=null;nextEv=t+10+R()*5;led('発車いたします　次の駅まで走り抜けろ')}}}}
+  if(spawnOn)while(nextSpawn<cam+W+150)spawn();
+ }
+ // player
+ const wx=cam+NX,pf=py;
+ if(st==='dead'){vy+=2000*dt;py+=vy*dt;spin+=dt*1.5;deadT+=dt;if(deadT>1.3)showResult()}
+ else{const g=(hold&&vy<0&&holdT<.28)?1000:2300;if(hold&&vy<0)holdT+=dt;vy+=g*dt;py+=vy*dt;if(spin>0)spin=Math.max(0,spin-dt*2.4);
+  let sy=Infinity,solid=true;
+  for(const o of obs){if(o.k==='g'&&wx-8>o.x&&wx+8<o.x+o.w)solid=false}
+  if(solid)sy=GY;
+  for(const o of obs){if(o.x>wx+20||o.x+o.w<wx-20)continue;
+   if(o.k==='h'&&wx+9>o.x&&wx-9<o.x+o.w){const top=GY-o.h;if(pf<=top+2)sy=Math.min(sy,top);else if(py>top+6){die('家の壁に激突…');return}}
+   if(o.k==='p'&&wx+9>o.x&&wx-9<o.x+o.w&&py>GY-o.h+4&&py-34<GY){die('電柱に激突…');return}}
+  if(py>=sy&&vy>=0){if(!onG&&vy>300)burst(NX,sy,'#bba',5);py=sy;vy=0;onG=true;dbl=false;lastG=t}else if(py<sy-1)onG=false;
+  if(sy===Infinity&&py>GY+14){die('川に落ちた…');return}
+  for(const it of items){if(!it.g&&Math.hypot(it.x-wx,it.y-(py-20))<34){it.g=1;scrolls++;pops.push({x:NX,y:py-50,s:'+50',l:.8});burst(NX,py-20,'#ffd34d',8)}}
+ }
+ obs=obs.filter(o=>o.x+o.w>cam-80);items=items.filter(i=>!i.g&&i.x>cam-60);
+ if(plat&&plat.x+plat.len<cam-50)plat=null;
+ for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=600*dt;p.l-=dt}parts=parts.filter(p=>p.l>0);
+ for(const p of pops){p.y-=40*dt;p.l-=dt}pops=pops.filter(p=>p.l>0);
+ $('hd').textContent=Math.floor(dist/40);$('hs').textContent=scrolls;$('hk').textContent=Math.round(spd*.16);
+ $('refl').style.opacity=(dark*.18).toFixed(3);
+}
+function mix(a,b,k){return 'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*k)).join(',')+')'}
+function draw(){
+ const k=Math.min(1,t/90)*(st==='title'?0:1);
+ X.save();if(shake>.5)X.translate((R()-.5)*shake,(R()-.5)*shake);
+ let g=X.createLinearGradient(0,0,0,GY);g.addColorStop(0,mix([110,190,240],[70,80,150],k));g.addColorStop(1,mix([200,235,250],[250,160,110],k));X.fillStyle=g;X.fillRect(-20,-20,W+40,H+40);
+ X.fillStyle=mix([255,250,220],[255,120,60],k);X.beginPath();X.arc(W*.78,H*(.14+k*.22),26,0,7);X.fill();
+ X.fillStyle='rgba(255,255,255,.75)';for(let i=0;i<4;i++){const x=((i*260-cam*.03)%(W+240)+W+240)%(W+240)-120,y=H*.08+i*22;X.beginPath();X.ellipse(x,y,46,13,0,0,7);X.ellipse(x+30,y-8,30,12,0,0,7);X.fill()}
+ // mountains
+ const hor=H*.52;X.fillStyle=mix([110,150,170],[110,90,130],k);X.beginPath();X.moveTo(0,hor);for(let x=0;x<=W+8;x+=8){const u=x+cam*.04;X.lineTo(x,hor-40-Math.sin(u*.006)*34-Math.sin(u*.017)*14)}X.lineTo(W,hor);X.fill();
+ X.fillStyle=mix([80,135,90],[80,95,80],k);X.beginPath();X.moveTo(0,hor+6);for(let x=0;x<=W+8;x+=8){const u=x+cam*.1;X.lineTo(x,hor-10-Math.sin(u*.011+2)*16-Math.sin(u*.03)*5)}X.lineTo(W,hor+6);X.fill();
+ // rice fields
+ X.fillStyle=mix([120,185,80],[130,140,70],k);X.fillRect(0,hor,W,GY-hor);
+ X.strokeStyle='rgba(60,110,40,.35)';X.lineWidth=1;for(let j=1;j<6;j++){const y=hor+(GY-hor)*j*j/36;X.beginPath();X.moveTo(0,y);X.lineTo(W,y);X.stroke()}
+ // distant houses & poles
+ const o1=cam*.25;for(let i=Math.floor(o1/70)-1;i<=Math.floor((o1+W)/70)+1;i++){if(hash(i)<.45)continue;const x=i*70-o1,hh=hash(i+9);X.fillStyle=hh<.5?'#e8e0cc':'#d9c9a8';X.fillRect(x,hor+6,26,14);X.fillStyle=hh<.3?'#5a6a8a':'#6b4a3a';X.beginPath();X.moveTo(x-4,hor+7);X.lineTo(x+13,hor-3);X.lineTo(x+30,hor+7);X.fill()}
+ const o2=cam*.5;X.strokeStyle='rgba(60,50,40,.5)';X.lineWidth=2;for(let i=Math.floor(o2/150)-1;i<=Math.floor((o2+W)/150)+1;i++){const x=i*150-o2,y0=GY-22;X.beginPath();X.moveTo(x,y0);X.lineTo(x,y0-70);X.moveTo(x-8,y0-64);X.lineTo(x+8,y0-64);X.stroke();X.lineWidth=1;X.beginPath();X.moveTo(x,y0-64);X.quadraticCurveTo(x+75,y0-50,x+150,y0-64);X.stroke();X.lineWidth=2}
+ // platform
+ if(plat){const x=plat.x-cam;X.fillStyle='#8a8a88';X.fillRect(x,GY,plat.len,H-GY);X.fillStyle='#b9b9b5';X.fillRect(x,GY,plat.len,8);X.fillStyle='#f2c230';X.fillRect(x,GY+11,plat.len,4);
+  X.fillStyle='#6a6a70';for(let p=x+60;p<x+plat.len;p+=220)X.fillRect(p,GY-150,8,150);X.fillStyle='#4a4a55';X.fillRect(x+30,GY-162,plat.len-60,14);
+  for(let s=x+170;s<x+plat.len-100;s+=660){X.fillStyle='#fff';X.fillRect(s,GY-128,130,40);X.strokeStyle='#1a5fb4';X.lineWidth=3;X.strokeRect(s,GY-128,130,40);X.fillStyle='#222';X.font='800 18px "M PLUS Rounded 1c"';X.textAlign='center';X.fillText(plat.n,s+65,GY-102);X.font='800 9px sans-serif';X.fillText('STATION',s+65,GY-92)}}
+ // ground
+ X.fillStyle='#6b5338';X.fillRect(0,GY,W,H-GY);X.fillStyle='#4e9a3a';X.fillRect(0,GY,W,6);
+ X.fillStyle='rgba(0,0,0,.18)';for(let i=Math.floor(cam/23);i<(cam+W)/23+1;i++){const x=i*23-cam,y=GY+12+hash(i)*(H-GY-30);X.fillRect(x,y,4,3)}
+ if(plat){const x=plat.x-cam;X.fillStyle='#8a8a88';X.fillRect(x,GY,plat.len,H-GY);X.fillStyle='#b9b9b5';X.fillRect(x,GY,plat.len,8);X.fillStyle='#f2c230';X.fillRect(x,GY+11,plat.len,4)}
+ // obstacles
+ const poles=obs.filter(o=>o.k==='p');
+ for(const o of obs){const x=o.x-cam;
+  if(o.k==='g'){X.fillStyle='#2f78b8';X.fillRect(x,GY,o.w,H-GY);X.fillStyle='#5aa0dc';for(let j=0;j<3;j++){X.fillRect(x+((j*37+cam*.3)%o.w),GY+18+j*16,18,3)}X.fillStyle='#4e3a26';X.fillRect(x-4,GY,5,H-GY);X.fillRect(x+o.w-1,GY,5,H-GY)}
+  else if(o.k==='h'){const top=GY-o.h,cs=[['#efe6d2','#3e4a5e'],['#d8c4a0','#5a3a2a'],['#f4f0e8','#2e5a4a'],['#e2d0b8','#6a2e2e']][o.c];X.fillStyle=cs[0];X.fillRect(x,top+10,o.w,o.h-10);X.fillStyle=cs[1];X.beginPath();X.moveTo(x-8,top+12);X.lineTo(x+6,top);X.lineTo(x+o.w-6,top);X.lineTo(x+o.w+8,top+12);X.fill();
+   X.fillStyle='#7aa3c8';for(let wx=x+16;wx<x+o.w-24;wx+=40)X.fillRect(wx,top+22,20,16);X.fillStyle='#5a4030';X.fillRect(x+o.w-28,GY-30,16,30)}
+  else{const top=GY-o.h;X.fillStyle='#8c8c86';X.fillRect(x,top,o.w,o.h);X.fillStyle='#6c6c66';X.fillRect(x-12,top+8,34,5);X.fillStyle='#ddd';X.fillRect(x-11,top+3,4,5);X.fillRect(x+17,top+3,4,5)}}
+ X.strokeStyle='#333';X.lineWidth=1.2;for(let i=0;i+1<poles.length;i++){const a=poles[i],b=poles[i+1];if(b.x-a.x>700)continue;const ax=a.x-cam+5,bx=b.x-cam+5,ay=GY-a.h+10,by=GY-b.h+10;X.beginPath();X.moveTo(ax,ay);X.quadraticCurveTo((ax+bx)/2,Math.max(ay,by)+22,bx,by);X.stroke()}
+ // items
+ X.font='26px serif';X.textAlign='center';X.textBaseline='middle';for(const it of items)X.fillText('📜',it.x-cam,it.y+Math.sin(t*4+it.b)*4);
+ drawNinja();
+ // tunnel
+ if(dark>.01){g=X.createRadialGradient(NX,py-20,30,NX,py-20,170);g.addColorStop(0,`rgba(6,6,14,${dark*.15})`);g.addColorStop(1,`rgba(6,6,14,${dark*.93})`);X.fillStyle=g;X.fillRect(-20,-20,W+40,H+40);
+  X.globalAlpha=dark;for(let i=Math.floor(cam/170);i<(cam+W)/170+1;i++){const x=i*170-cam;X.fillStyle='rgba(255,170,60,.25)';X.beginPath();X.arc(x,H*.12,14,0,7);X.fill();X.fillStyle='#ffbb55';X.fillRect(x-9,H*.12-2,18,4)}
+  for(const o of obs){const x=o.x-cam;if(o.k==='p'){X.fillStyle='#ff3030';X.beginPath();X.arc(x+5,GY-o.h-3,5,0,7);X.fill();X.fillStyle='rgba(255,60,60,.35)';X.fillRect(x+2,GY-o.h,6,o.h)}
+   else if(o.k==='h'){X.fillStyle='#ffd870';for(let wx=x+16;wx<x+o.w-24;wx+=40)X.fillRect(wx,GY-o.h+22,20,16);X.fillStyle='rgba(255,220,120,.6)';X.fillRect(x,GY-o.h,o.w,3)}
+   else{X.fillStyle='#ff9a20';X.fillRect(x-3,GY-4,6,8);X.fillRect(x+o.w-3,GY-4,6,8);X.fillStyle='rgba(80,160,255,.35)';X.fillRect(x,GY+2,o.w,3)}}
+  X.globalAlpha=1}
+ // near fence blur
+ X.fillStyle='rgba(40,30,20,.35)';const o3=cam*1.8;for(let i=Math.floor(o3/90);i<(o3+W)/90+1;i++)X.fillRect(i*90-o3,H-26,22,26);
+ for(const p of parts){X.globalAlpha=Math.max(0,p.l*2);X.fillStyle=p.c;X.fillRect(p.x,p.y,4,4)}X.globalAlpha=1;
+ X.font='800 20px "M PLUS Rounded 1c"';for(const p of pops){X.globalAlpha=Math.min(1,p.l*2);X.fillStyle='#ffe08a';X.fillText(p.s,p.x,p.y)}X.globalAlpha=1;
+ X.restore();
+}
+function drawNinja(){if(st==='title'||st==='over'){py=GY;onG=true}
+ X.save();X.translate(NX-(st==='dead'?deadT*90:0),py-18);X.rotate(st==='dead'?spin*6:spin*Math.PI*2);
+ const run=onG&&st==='play',ph=t*16;
+ X.strokeStyle='#d33';X.lineWidth=4;X.beginPath();X.moveTo(-4,-13);for(let i=1;i<=4;i++)X.lineTo(-4-i*7,-13+Math.sin(ph*.7-i)*4-i);X.stroke();
+ X.strokeStyle='#1c1c2a';X.lineWidth=5;X.lineCap='round';X.beginPath();
+ if(run){X.moveTo(0,4);X.lineTo(Math.sin(ph)*9,18);X.moveTo(0,4);X.lineTo(-Math.sin(ph)*9,18)}else{X.moveTo(0,4);X.lineTo(7,13);X.lineTo(2,16);X.moveTo(0,4);X.lineTo(-7,12)}
+ X.moveTo(0,-4);X.lineTo(10,run?Math.cos(ph)*5:-8);X.stroke();
+ X.fillStyle='#1c1c2a';X.beginPath();X.ellipse(0,-1,8,10,0,0,7);X.fill();X.beginPath();X.arc(1,-15,8,0,7);X.fill();
+ X.fillStyle='#f3d4b0';X.fillRect(-1,-17,10,4);X.fillStyle='#000';X.fillRect(5,-16,2,2);X.fillStyle='#d33';X.fillRect(-7,-21,15,3);
+ X.restore()}
+function showResult(){if(st==='over')return;st='over';resT=performance.now();
+ const m=Math.floor(dist/40);score=Math.max(0,Math.floor(m+scrolls*50))||0;
+ $('rcause').textContent=cause;$('rsc').textContent=score;$('rdet').innerHTML='走行距離 '+m+' m<br>巻物 '+scrolls+' 本（+'+scrolls*50+'）';
+ $('rrank').textContent=score<300?'見習い忍者':score<800?'下忍':score<1600?'中忍':score<3000?'上忍':'伝説の車窓忍者';
+ $('result').classList.remove('hide');led('ご乗車ありがとうございました　スコア '+score);
+ if(!submitted){submitted=true;const s=score;setTimeout(()=>window.GC&&GC.submitScore(s),1200)}}
+$('bs').addEventListener('click',start);
+$('br').addEventListener('click',()=>{if(performance.now()-resT>500)start()});
+win.addEventListener('pointerdown',e=>{if(st==='play'){e.preventDefault();press()}});
+addEventListener('pointerup',()=>hold=false);addEventListener('pointercancel',()=>hold=false);
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'||e.code==='Enter'){e.preventDefault();if(e.repeat)return;if(st==='play')press();else if(st==='title'||(st==='over'&&performance.now()-resT>600))start()}});
+addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp')hold=false});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault());
+let lt=performance.now();
+function loop(n){const dt=Math.min(.05,(n-lt)/1000)||0;lt=n;update(dt);draw();requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
