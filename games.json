@@ -19,5 +19,13 @@
   {"date":"2026-11-02","title":"書類判定ハンコ係（不備のある書類は却下）","file":"games/hanko-gakari.html","score":{"order":"desc","unit":"点","min":0,"max":3000,"decimals":0,"label":"正しく判定した書類のスコア"}},
   {"date":"2026-11-03","title":"プール飛び込み（空中スピンで加点、着水はまっすぐ）","file":"games/pool-diving.html","score":{"order":"desc","unit":"点","min":0,"max":700,"decimals":0,"label":"5ダイブの合計点"}},
   {"date":"2026-11-04","title":"わんこそば早食い（受け取る→入れる→噛む→飲むをリズムで）","file":"games/wanko-soba.html","score":{"order":"desc","unit":"点","min":0,"max":20000,"decimals":0,"label":"50秒のタイミングスコア"}},
-  {"date":"2026-11-05","title":"大食いチャレンジ（消化と満腹度の駆け引き）","file":"games/oogui.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"満腹にならずに食べた量"}}
+  {"date":"2026-11-05","title":"大食いチャレンジ（消化と満腹度の駆け引き）","file":"games/oogui.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"満腹にならずに食べた量"}},
+  {"date":"2026-11-06","title":"壁ドン・ラン（人を避けて壁へ、的に重なったらスペース）","file":"games/kabedon-run.html","score":{"order":"desc","unit":"点","min":0,"max":4000,"decimals":0,"label":"距離+壁ドン成功+残りライフのスコア"}},
+  {"date":"2026-11-07","title":"壁掛け時計（人の行動に合う時刻を当てる）","file":"games/kabekake-tokei.html","score":{"order":"desc","unit":"点","min":0,"max":800,"decimals":0,"label":"8ラウンドの時刻当てスコア"}},
+  {"date":"2026-11-08","title":"眠れる森の美女（美青年だけキスを受け入れる）","file":"games/nemureru-mori.html","score":{"order":"desc","unit":"点","min":0,"max":1000,"decimals":0,"label":"45秒の判定スコア"}},
+  {"date":"2026-11-09","title":"台風でいよう（円を描いて勢力維持、上陸すると衰退）","file":"games/taifuu.html","score":{"order":"desc","unit":"点","min":0,"max":3000,"decimals":0,"label":"生存時間と最大勢力のスコア"}},
+  {"date":"2026-11-10","title":"ソフトクリーム巻き（円を描いてどこまで高く積めるか）","file":"games/soft-cream.html","score":{"order":"desc","unit":"段","min":0,"max":200,"decimals":0,"label":"崩れるまでに積んだ段数"}},
+  {"date":"2026-11-11","title":"雑巾がけ競争（左右交互連打で廊下を走る）","file":"games/zoukingake.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"ゴールタイムか到達距離のスコア"}},
+  {"date":"2026-11-12","title":"バランス綱渡り（左右ボタンで倒れずに進む）","file":"games/balance-walk.html","score":{"order":"desc","unit":"m","min":0,"max":2000,"decimals":0,"label":"落ちるまでに進んだ距離"}},
+  {"date":"2026-11-13","title":"テーブルクロス引き（力加減で食器を落とさず引き抜く）","file":"games/table-cloth.html","score":{"order":"desc","unit":"点","min":0,"max":500,"decimals":0,"label":"成功ラウンドと最終品数のスコア"}}
 ]

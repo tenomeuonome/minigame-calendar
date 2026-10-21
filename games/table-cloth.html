@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テーブルクロス引き</title>
+<style>
+  body { margin:0; background:#3a2a1a; color:#f5e9d6; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:700px; max-width:100%; margin-bottom:6px; font-size:14px; }
+  #wrap { position:relative; }
+  canvas { background:#5a3a1a; border:3px solid #2a1a0a; border-radius:10px; display:block; }
+  #powerWrap { width:700px; max-width:100%; margin-top:10px; }
+  #powerBar { height:20px; background:#fff; border:2px solid #2a1a0a; border-radius:10px; overflow:hidden; position:relative; }
+  #powerFill { height:100%; width:0%; background:linear-gradient(90deg,#6cc070,#ffd24a,#d9534f); }
+  #zone { position:absolute; top:0; height:100%; background:rgba(255,255,255,0.4); border-left:2px solid #333; border-right:2px solid #333; }
+  #pullBtn { margin-top:12px; font-size:16px; padding:12px 28px; border-radius:10px; border:none; background:#c0392b; color:#fff; cursor:pointer; font-weight:bold; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.78); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:26px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#e8893a; color:#fff; cursor:pointer; }
+  #help { max-width:700px; font-size:13px; color:#d8c3a0; margin-top:10px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🍽️ テーブルクロス引き</h1>
+  <div id="hud">
+    <div>ラウンド: <span id="round">1</span></div>
+    <div>テーブルの上: <span id="itemCount">3</span>個</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="700" height="320"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="powerWrap">
+    <div id="powerBar"><div id="powerFill"></div><div id="zone"></div></div>
+  </div>
+  <button id="pullBtn" onmousedown="startCharge()" onmouseup="releasePull()" ontouchstart="startCharge()" ontouchend="releasePull()">引く！(押して力をためて離す)</button>
+  <div id="help">
+    ボタンを押している間、引く力がたまっていく。白いゾーンの中で離せば「ちょうどいい力」でクロスだけ引き抜ける。<br>
+    弱すぎ・強すぎだと食器が落ちる。成功するたびにテーブルの上の品数が増えていく、続けられるところまで挑戦。
+  </div>
+
+<script>
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    round: 1, itemCount: 3, power: 0, charging: false, running: true,
+    zoneCenter: 55, zoneWidth: 16,
+  };
+  updateZone();
+  render();
+}
+
+function updateZone() {
+  // ラウンドが進むほどゾーンが狭く、位置もランダムに
+  state.zoneWidth = Math.max(6, 16 - state.round);
+  state.zoneCenter = 30 + Math.random() * 45;
+  const zoneEl = document.getElementById('zone');
+  zoneEl.style.left = (state.zoneCenter - state.zoneWidth/2) + '%';
+  zoneEl.style.width = state.zoneWidth + '%';
+  document.getElementById('round').textContent = state.round;
+  document.getElementById('itemCount').textContent = state.itemCount;
+}
+
+function startCharge() {
+  if (!state.running) return;
+  state.charging = true;
+  state.power = 0;
+}
+
+function releasePull() {
+  if (!state.running || !state.charging) return;
+  state.charging = false;
+  const inZone = Math.abs(state.power - state.zoneCenter) <= state.zoneWidth / 2;
+  if (inZone) {
+    state.round++;
+    state.itemCount += Math.random() < 0.6 ? 1 : 2;
+    updateZone();
+  } else {
+    return endGame();
+  }
+}
+
+function update() {
+  if (!state.running) return;
+  if (state.charging) {
+    state.power = Math.min(100, state.power + 1.6);
+    if (state.power >= 100) return endGame();
+  }
+  document.getElementById('powerFill').style.width = state.power + '%';
+  render();
+}
+
+function endGame() {
+  state.running = false;
+  const score = (state.round - 1) * 10 + state.itemCount;
+  document.getElementById('msgTitle').textContent = '💥 食器が落ちた！';
+  document.getElementById('msgText').textContent = `成功ラウンド: ${state.round - 1}回\n最後のテーブル: ${state.itemCount}個\nスコア: ${score}`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(score), 1200);
+  render();
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // テーブル
+  ctx.fillStyle = '#8a6a3a';
+  ctx.fillRect(60, 200, W - 120, 24);
+  ctx.fillStyle = '#6a4a1a';
+  ctx.fillRect(90, 224, 20, 80);
+  ctx.fillRect(W - 110, 224, 20, 80);
+
+  // クロス(力に応じてずれる)
+  const clothOffset = state.charging ? state.power * 2 : 0;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(60 - clothOffset, 190, W - 120, 14);
+
+  // 品物
+  const items = ['🍽️', '🍶', '🥣', '🍷', '🍵', '🍴', '🥛'];
+  const n = Math.min(items.length + 3, state.itemCount);
+  const spacing = (W - 200) / Math.max(1, n - 1);
+  for (let i = 0; i < n; i++) {
+    const x = 100 + i * spacing;
+    const wobble = state.charging ? (Math.random() - 0.5) * (state.power / 10) : 0;
+    ctx.font = '26px sans-serif';
+    ctx.fillText(items[i % items.length], x + wobble, 192);
+  }
+}
+
+function loop() { update(); requestAnimationFrame(loop); }
+resetGame();
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>壁掛け時計</title>
+<style>
+  body { margin:0; background:#f0ece0; color:#4a3a2a; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:420px; max-width:100%; margin-bottom:8px; font-size:14px; }
+  #wrap { position:relative; width:420px; max-width:100%; }
+  #scene { background:#fff; border:3px solid #c9a876; border-radius:14px; padding:20px; text-align:center; }
+  #activity { font-size:48px; margin-bottom:6px; }
+  #activityText { font-size:16px; margin-bottom:16px; }
+  canvas { background:#fffaf0; border-radius:50%; border:6px solid #8a6a3a; }
+  .patience-bar { height:8px; background:#eee; border-radius:4px; overflow:hidden; margin:14px auto 0; width:260px; }
+  .patience-fill { height:100%; background:#6cc070; transition:width 0.1s linear; }
+  .patience-fill.warn { background:#e0a33a; }
+  .patience-fill.danger { background:#d9534f; }
+  #ctl { display:flex; justify-content:center; gap:16px; margin-top:14px; }
+  #ctl button { font-size:18px; width:48px; height:48px; border-radius:50%; border:2px solid #c9a876; background:#fffaf0; cursor:pointer; }
+  #submitBtn { margin-top:14px; font-size:15px; padding:10px 24px; border-radius:10px; border:none; background:#c0392b; color:#fff; cursor:pointer; font-weight:bold; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.75); border-radius:14px; text-align:center; color:#fff; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#8a6a3a; color:#fff; cursor:pointer; margin-top:8px; }
+  #help { max-width:420px; font-size:13px; color:#8a7355; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🕰️ 壁掛け時計</h1>
+  <div id="hud">
+    <div>スコア: <span id="score">0</span></div>
+    <div>ラウンド: <span id="round">1</span> / 8</div>
+  </div>
+  <div id="wrap">
+    <div id="scene">
+      <div id="activity"></div>
+      <div id="activityText"></div>
+      <canvas id="clock" width="220" height="220"></canvas>
+      <div class="patience-bar"><div class="patience-fill" id="patienceFill"></div></div>
+      <div id="ctl">
+        <button onclick="adjust(-1)">−</button>
+        <span id="hourLabel" style="font-size:20px; line-height:48px;">12時</span>
+        <button onclick="adjust(1)">＋</button>
+      </div>
+      <button id="submitBtn" onclick="submitGuess()">この時刻に合わせる</button>
+    </div>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    人の行動に合う時刻に、時計の針を＋/−で合わせて「この時刻に合わせる」。ぴったりなほど高得点、ずれるほど減点。8ラウンド勝負。
+  </div>
+
+<script>
+const ACTIVITIES = [
+  { emoji: '🌅', text: 'そろそろ朝ごはんの時間…', hour: 7 },
+  { emoji: '🎒', text: '学校へ出かける時間…', hour: 8 },
+  { emoji: '🍱', text: 'お腹がすいた、お昼だ…', hour: 12 },
+  { emoji: '📚', text: '学校から帰ってきた…', hour: 15 },
+  { emoji: '🍡', text: 'おやつの時間にしよう…', hour: 16 },
+  { emoji: '🍽️', text: '夕ごはんの支度を始める…', hour: 19 },
+  { emoji: '🛁', text: 'お風呂に入る時間…', hour: 21 },
+  { emoji: '😴', text: 'そろそろ眠くなってきた…', hour: 22 },
+  { emoji: '🌙', text: '夜中に目が覚めてしまった…', hour: 2 },
+];
+
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = { round: 1, score: 0, guess: 12, patience: 1, running: true, order: shuffledActivities() };
+  nextRound();
+}
+
+function shuffledActivities() {
+  const arr = [...ACTIVITIES];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, 8);
+}
+
+function nextRound() {
+  state.activity = state.order[state.round - 1];
+  state.guess = Math.floor(Math.random() * 24); // 初期位置はランダム
+  state.patience = 1;
+  document.getElementById('activity').textContent = state.activity.emoji;
+  document.getElementById('activityText').textContent = state.activity.text;
+  document.getElementById('round').textContent = state.round;
+  render();
+}
+
+function adjust(d) {
+  state.guess = (state.guess + d + 24) % 24;
+  render();
+}
+
+function hourLabel(h) {
+  const period = h < 12 ? '午前' : '午後';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${period}${h12}時`;
+}
+
+function submitGuess() {
+  if (!state.running) return;
+  const diff = Math.min(Math.abs(state.guess - state.activity.hour), 24 - Math.abs(state.guess - state.activity.hour));
+  const points = Math.max(0, 100 - diff * 15);
+  state.score += points;
+  document.getElementById('score').textContent = state.score;
+
+  if (state.round >= 8) {
+    return endGame();
+  }
+  state.round++;
+  nextRound();
+}
+
+function update() {
+  if (!state.running) return;
+  state.patience -= 1 / 360; // 約6秒
+  if (state.patience <= 0) {
+    submitGuess();
+    return;
+  }
+  const bar = document.getElementById('patienceFill');
+  const pct = Math.max(0, state.patience * 100);
+  bar.style.width = pct + '%';
+  bar.className = 'patience-fill' + (pct < 25 ? ' danger' : pct < 55 ? ' warn' : '');
+  drawClock();
+}
+
+function render() {
+  document.getElementById('hourLabel').textContent = hourLabel(state.guess);
+  drawClock();
+}
+
+function drawClock() {
+  const canvas = document.getElementById('clock');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, r = W/2 - 16;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#8a6a3a';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.sin(a) * (r - 8), cy - Math.cos(a) * (r - 8));
+    ctx.lineTo(cx + Math.sin(a) * r, cy - Math.cos(a) * r);
+    ctx.stroke();
+  }
+  // 時針
+  const hourAngle = ((state.guess % 12) / 12) * Math.PI * 2;
+  ctx.strokeStyle = '#4a3a2a';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(hourAngle) * (r * 0.55), cy - Math.cos(hourAngle) * (r * 0.55));
+  ctx.stroke();
+  ctx.fillStyle = '#4a3a2a';
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+}
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '🕰️ おつかれさま';
+  document.getElementById('msgText').textContent = `合計スコア: ${state.score}点 / 800点満点`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
+}
+
+setInterval(update, 1000/60);
+resetGame();
+</script>
+</body>
+</html>

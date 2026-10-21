@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ソフトクリーム巻き</title>
+<style>
+  body { margin:0; background:#fff3e0; color:#5a3a1a; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:500px; max-width:100%; margin-bottom:6px; font-size:14px; }
+  #stabBar { width:500px; max-width:100%; height:12px; background:#fff; border:2px solid #d9a35a; border-radius:6px; overflow:hidden; margin-bottom:8px; }
+  #stabFill { height:100%; width:0%; background:linear-gradient(90deg,#6cc070,#ff6b4d); transition:width 0.1s linear; }
+  #wrap { position:relative; }
+  canvas { background:#fffaf0; border:3px solid #d9a35a; border-radius:10px; display:block; touch-action:none; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.75); border-radius:10px; text-align:center; color:#fff; }
+  #msg h2 { font-size:26px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#e8893a; color:#fff; cursor:pointer; }
+  #help { max-width:500px; font-size:13px; color:#8a6a4a; margin-top:10px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🍦 ソフトクリーム巻き</h1>
+  <div id="hud">
+    <div>高さ: <span id="height">0</span>段</div>
+    <div>不安定度</div>
+  </div>
+  <div id="stabBar"><div id="stabFill"></div></div>
+  <div id="wrap">
+    <canvas id="game" width="500" height="500" style="touch-action:none;"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    コーンの上でマウス/指を一定の半径でぐるぐる回すと、1周ごとにソフトクリームが高く巻き上がる。<br>
+    回す半径がバラバラだと不安定度が上がり、満タンになると崩れてゲームオーバー。
+  </div>
+
+<script>
+const W = 500, H = 500;
+const CENTER = { x: W/2, y: 330 };
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = { height: 0, instability: 0, running: true, radiusHistory: [], layers: [] };
+  render();
+}
+
+let prevAngle = null;
+let targetRadius = null;
+let circleProgress = 0;
+
+function screenPos(e) {
+  const canvas = document.getElementById('game');
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: (cx - rect.left) * (W / rect.width), y: (cy - rect.top) * (H / rect.height) };
+}
+
+function handleMove(e) {
+  if (!state.running) return;
+  const p = screenPos(e);
+  const dx = p.x - CENTER.x, dy = p.y - CENTER.y;
+  const r = Math.hypot(dx, dy);
+  if (r < 15 || r > 180) { prevAngle = null; return; }
+
+  if (targetRadius === null) targetRadius = r;
+  const radiusError = Math.abs(r - targetRadius);
+
+  const angle = Math.atan2(dy, dx);
+  if (prevAngle !== null) {
+    let d = angle - prevAngle;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    circleProgress += d;
+
+    // 半径のブレが大きいほど不安定度が上がる
+    state.instability = Math.min(100, state.instability + Math.max(0, radiusError - 10) * 0.15);
+
+    if (Math.abs(circleProgress) >= Math.PI * 2) {
+      state.height++;
+      state.layers.push(targetRadius);
+      document.getElementById('height').textContent = state.height;
+      circleProgress = 0;
+      targetRadius = r;
+      state.instability = Math.max(0, state.instability - 8); // きれいに1周できたらご褒美で少し安定
+    }
+  }
+  prevAngle = angle;
+}
+
+document.getElementById('game').addEventListener('mousemove', handleMove);
+document.getElementById('game').addEventListener('touchmove', e => { e.preventDefault(); handleMove(e); }, { passive: false });
+document.addEventListener('mouseleave', () => { prevAngle = null; });
+
+function update() {
+  if (!state.running) return;
+  // ほんの少しずつ自然に不安定度が下がる(止まっていれば落ち着く)
+  state.instability = Math.max(0, state.instability - 0.1);
+
+  const bar = document.getElementById('stabFill');
+  bar.style.width = state.instability + '%';
+
+  if (state.instability >= 100) return endGame();
+  render();
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // コーン
+  ctx.fillStyle = '#d9a35a';
+  ctx.beginPath();
+  ctx.moveTo(CENTER.x - 40, CENTER.y);
+  ctx.lineTo(CENTER.x + 40, CENTER.y);
+  ctx.lineTo(CENTER.x, CENTER.y + 130);
+  ctx.fill();
+
+  // ソフトクリームの層
+  const wobble = state.instability / 100;
+  for (let i = 0; i < state.layers.length; i++) {
+    const y = CENTER.y - 10 - i * 14;
+    const r = 55 - i * 1.2;
+    const ox = (Math.random() - 0.5) * wobble * 14;
+    ctx.beginPath();
+    ctx.ellipse(CENTER.x + ox, y, Math.max(8, r), 16, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff3d9';
+    ctx.fill();
+    ctx.strokeStyle = '#e8c88a';
+    ctx.stroke();
+  }
+
+  // ガイド円(目標半径)
+  if (targetRadius) {
+    ctx.beginPath();
+    ctx.arc(CENTER.x, CENTER.y, targetRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(200,130,40,0.3)';
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '💥 崩れた！';
+  document.getElementById('msgText').textContent = `積み上げた高さ: ${state.height}段`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(state.height), 1200);
+}
+
+setInterval(update, 1000/60);
+resetGame();
+</script>
+</body>
+</html>
