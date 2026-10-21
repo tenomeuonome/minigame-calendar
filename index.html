@@ -51,6 +51,9 @@
   .day.has-game { background: linear-gradient(145deg, #5a4ab0, #3a2f80); color: #fff; }
   .day.has-game:hover { filter: brightness(1.2); }
   .day.today { outline: 2px solid var(--gold); outline-offset: -2px; }
+  button.day { border: 0; font: inherit; font-size: 13px; padding: 0; cursor: pointer; }
+  .day.selected { background: linear-gradient(145deg, #ff6a8a, #b03a8f); box-shadow: 0 0 0 2px #fff inset; }
+  .back-today { margin-left: 8px; background: rgba(255,255,255,.18); color: #fff; border: 0; border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 11px; cursor: pointer; }
   .day .num { font-weight: 700; }
   .day .dot { font-size: 14px; line-height: 1; margin-top: 2px; }
 
@@ -107,19 +110,32 @@ async function load() {
   viewY = y; viewM = m - 1;
   const first = games.map(g => g.date).sort()[0] || today;
   minYM = first.slice(0, 7); maxYM = today.slice(0, 7);
+  selected = today;
   renderToday(); renderCal(); renderList();
 }
 
+// 上の枠: 最初は今日のゲーム。カレンダーで選んだ日に切り替わる
+let selected = '';
 function renderToday() {
-  const g = games.find(x => x.date === today);
+  const g = games.find(x => x.date === selected);
+  const isToday = selected === today;
   const box = document.getElementById('todayBox');
   if (!g) { box.innerHTML = `<div class="today"><div class="label">今日のゲーム</div><p class="none">今日の分はまだ準備中。これまでのゲームで遊んでね</p></div>`; return; }
   box.innerHTML = `<div class="today">
-    <div class="label">今日のゲーム · ${mdw(g.date)}</div>
+    <div class="label">${isToday ? '今日のゲーム' : 'この日のゲーム'} · ${mdw(g.date)}${isToday ? '' : ' <button class="back-today" id="backToday">今日にもどる</button>'}</div>
     <div class="title">${esc(g.title)}</div>
     <div class="meta">👀 ${g.plays.toLocaleString()}回あそばれた${g.top ? ` · 🏆 ${esc(g.top.name)} ${fmtScore(g.top.score, g.score)}` : ''}</div>
     <div class="actions"><a class="btn play" href="${esc(g.href)}">▶ あそぶ</a>${g.score ? `<a class="btn rank" href="ranking.html?game=${encodeURIComponent(g.slug)}">🏆 ランキング</a>` : ''}</div>
   </div>`;
+  document.getElementById('backToday')?.addEventListener('click', () => selectDay(today));
+}
+
+function selectDay(ds) {
+  selected = ds;
+  renderToday(); renderCal();
+  // スマホでは枠が画面の外にあることが多いので、見える位置まで戻す
+  const box = document.getElementById('todayBox');
+  if (box.getBoundingClientRect().top < 0) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderCal() {
@@ -134,13 +150,17 @@ function renderCal() {
   let html = '<div class="day empty"></div>'.repeat(firstDow);
   for (let d = 1; d <= days; d++) {
     const ds = `${ym}-${pad(d)}`, g = games.find(x => x.date === ds);
-    const cls = 'day' + (g ? ' has-game' : '') + (ds === today ? ' today' : '');
+    const cls = 'day' + (g ? ' has-game' : '') + (ds === today ? ' today' : '') + (g && ds === selected ? ' selected' : '');
     html += g
-      ? `<a class="${cls}" href="${esc(g.href)}" title="${esc(g.title)}"><span class="num">${d}</span><span class="dot">🎮</span></a>`
+      ? `<button type="button" class="${cls}" data-date="${ds}" title="${esc(g.title)}" aria-pressed="${ds === selected}"><span class="num">${d}</span><span class="dot">🎮</span></button>`
       : `<div class="${cls}"><span class="num">${d}</span></div>`;
   }
   cal.insertAdjacentHTML('beforeend', html);
 }
+document.getElementById('cal').addEventListener('click', e => {
+  const b = e.target.closest('button[data-date]');
+  if (b) selectDay(b.dataset.date);
+});
 function shiftMonth(n) {
   viewM += n;
   if (viewM < 0) { viewM = 11; viewY--; }
