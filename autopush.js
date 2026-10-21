@@ -65,7 +65,8 @@ function assignDates() {
 
 function main() {
   if (!assignDates()) return;
-  const status = git('status', '--porcelain');
+  // 先頭の空白も意味を持つ(" M file")ので、git() の trim を通さずに読む
+  const status = execFileSync('git', ['status', '--porcelain'], { cwd: DIR, encoding: 'utf8' }).replace(/\s+$/, '');
   if (!status) return; // 変更なし
   const files = status.split('\n').map(l => l.slice(3)).filter(Boolean);
   git('add', '-A');
