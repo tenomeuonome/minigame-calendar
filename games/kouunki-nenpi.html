@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>耕運機の燃費チャレンジ</title>
+<style>
+  body { margin:0; background:#2a2010; color:#f0e8d8; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:700px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wrap { position:relative; }
+  canvas { background:#8a6a3a; border:3px solid #4a3018; border-radius:10px; display:block; touch-action:none; }
+  #ctl { display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(2,52px); gap:8px; margin-top:12px; justify-content:center; }
+  #ctl button { font-size:20px; border-radius:10px; border:none; background:#6a4a2a; color:#fff; cursor:pointer; user-select:none; touch-action:none; }
+  #ctl button:active { background:#9a7a4a; }
+  #btnUp { grid-column:2; grid-row:1; }
+  #btnDown { grid-column:2; grid-row:2; }
+  #btnLeft { grid-column:1; grid-row:1/3; }
+  #btnRight { grid-column:3; grid-row:1/3; }
+  #endBtn { margin-top:12px; font-size:15px; padding:10px 24px; border-radius:10px; border:none; background:#c04a3a; color:#fff; cursor:pointer; font-weight:bold; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.8); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:700px; font-size:13px; color:#d8c8a8; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🚜 耕運機の燃費チャレンジ</h1>
+  <div id="hud">
+    <div>燃料: <span id="fuel">100.0</span>L</div>
+    <div>耕したマス: <span id="tilled">0</span></div>
+    <div>効率: <span id="ratio">0.00</span>マス/L</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="700" height="420"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="ctl">
+    <button id="btnUp">▲</button>
+    <button id="btnLeft">◀</button>
+    <button id="btnRight">▶</button>
+    <button id="btnDown">▼</button>
+  </div>
+  <button id="endBtn" onclick="finishEarly()">🏁 ここで終了</button>
+  <div id="help">
+    矢印キー(↑↓←→)かボタンで操作。ラジコンと同じく<b>ハンドルは効きが遅れて、離してもしばらく曲がり続ける</b>ので、
+    早めの戻し操作が要る。耕したマスの数 ÷ 使った燃料(L) の効率を競うゲーム。無駄な切り返しや空ぶかしは燃料の無駄、
+    燃料が尽きると強制終了。伸びが止まったら「ここで終了」で早めに締めるのも手。
+  </div>
+
+<script>
+const COLS = 20, ROWS = 12, CELL = 35;
+const MAXSPEED = 2.4, ACCEL = 0.08, BRAKE = 0.11, FRICTION = 0.985;
+const TURN_POWER = 0.0026, TURN_DAMP = 0.92, MAX_ANGVEL = 0.085;
+const FUEL_MAX = 100;
+
+let state = {};
+let input = { up:false, down:false, left:false, right:false };
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  document.getElementById('endBtn').disabled = false;
+  state = {
+    x: COLS * CELL / 2, y: ROWS * CELL / 2, angle: 0, speed: 0, angVel: 0,
+    fuel: FUEL_MAX, tilled: new Set(), running: true,
+  };
+  updateHud();
+  render();
+}
+
+function updateHud() {
+  const fuelUsed = FUEL_MAX - state.fuel;
+  const ratio = fuelUsed > 0.05 ? state.tilled.size / fuelUsed : 0;
+  document.getElementById('fuel').textContent = Math.max(0, state.fuel).toFixed(1);
+  document.getElementById('tilled').textContent = state.tilled.size;
+  document.getElementById('ratio').textContent = ratio.toFixed(2);
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function bindHold(el, onFlag) {
+  const set = v => e => { e.preventDefault(); onFlag(v); };
+  el.addEventListener('pointerdown', set(true));
+  el.addEventListener('pointerup', set(false));
+  el.addEventListener('pointercancel', set(false));
+  el.addEventListener('pointerleave', set(false));
+}
+bindHold(document.getElementById('btnUp'), v => input.up = v);
+bindHold(document.getElementById('btnDown'), v => input.down = v);
+bindHold(document.getElementById('btnLeft'), v => input.left = v);
+bindHold(document.getElementById('btnRight'), v => input.right = v);
+
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if (e.key === 'ArrowUp' || e.key === 'w') input.up = true;
+  if (e.key === 'ArrowDown' || e.key === 's') input.down = true;
+  if (e.key === 'ArrowLeft' || e.key === 'a') input.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') input.right = true;
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp' || e.key === 'w') input.up = false;
+  if (e.key === 'ArrowDown' || e.key === 's') input.down = false;
+  if (e.key === 'ArrowLeft' || e.key === 'a') input.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') input.right = false;
+});
+
+function finishEarly() {
+  if (!state.running) return;
+  endGame('🏁 ここで終了');
+}
+
+function update() {
+  if (!state.running) return;
+
+  if (input.up) state.speed += ACCEL;
+  else if (input.down) state.speed -= BRAKE;
+  state.speed *= FRICTION;
+  state.speed = clamp(state.speed, -MAXSPEED * 0.5, MAXSPEED);
+
+  const speedFactor = Math.min(1, Math.abs(state.speed) / MAXSPEED * 1.5);
+  let steer = 0;
+  if (input.left) steer -= 1;
+  if (input.right) steer += 1;
+  state.angVel += steer * TURN_POWER * speedFactor;
+  state.angVel *= TURN_DAMP;
+  state.angVel = clamp(state.angVel, -MAX_ANGVEL, MAX_ANGVEL);
+  const dir = state.speed < 0 ? -1 : 1;
+  state.angle += state.angVel * dir;
+
+  state.x += Math.cos(state.angle) * state.speed;
+  state.y += Math.sin(state.angle) * state.speed;
+
+  const minX = CELL / 2, maxX = COLS * CELL - CELL / 2;
+  const minY = CELL / 2, maxY = ROWS * CELL - CELL / 2;
+  if (state.x < minX || state.x > maxX) { state.x = clamp(state.x, minX, maxX); state.speed *= 0.4; }
+  if (state.y < minY || state.y > maxY) { state.y = clamp(state.y, minY, maxY); state.speed *= 0.4; }
+
+  if (Math.abs(state.speed) > 0.15) {
+    const col = Math.floor(state.x / CELL), row = Math.floor(state.y / CELL);
+    if (col >= 0 && col < COLS && row >= 0 && row < ROWS) state.tilled.add(`${row},${col}`);
+  }
+
+  const moveDrain = Math.abs(state.speed) / MAXSPEED * 0.03;
+  const steerDrain = Math.abs(state.angVel) / MAX_ANGVEL * 0.015;
+  state.fuel -= moveDrain + steerDrain + 0.004;
+
+  updateHud();
+  if (state.fuel <= 0) { state.fuel = 0; updateHud(); return endGame('⛽ ガス欠！'); }
+  render();
+}
+
+function endGame(title) {
+  state.running = false;
+  document.getElementById('endBtn').disabled = true;
+  const fuelUsed = FUEL_MAX - state.fuel;
+  const ratio = fuelUsed > 0.05 ? state.tilled.size / fuelUsed : 0;
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgText').textContent =
+    `耕したマス: ${state.tilled.size}\n使った燃料: ${fuelUsed.toFixed(1)}L\n効率: ${ratio.toFixed(2)}マス/L`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(Math.round(ratio * 100) / 100), 1200);
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const isTilled = state.tilled.has(`${r},${c}`);
+      ctx.fillStyle = isTilled ? '#4a3018' : (r + c) % 2 === 0 ? '#8a6a3a' : '#846538';
+      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      if (isTilled) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.moveTo(c * CELL + 4, r * CELL + CELL / 2);
+        ctx.lineTo(c * CELL + CELL - 4, r * CELL + CELL / 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.save();
+  ctx.translate(state.x, state.y);
+  ctx.rotate(state.angle);
+  ctx.font = '30px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🚜', 0, 0);
+  ctx.restore();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+setInterval(update, 1000 / 30);
+resetGame();
+</script>
+</body>
+</html>
