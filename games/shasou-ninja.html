@@ -80,7 +80,7 @@ let st='title',t=0,cam=0,spd=0,mult=1,multT=1,dist=0,py=0,vy=0,onG=true,lastG=0,
 let obs=[],items=[],parts=[],pops=[],scrolls=0,nextSpawn=0,spawnOn=true,ev=null,nextEv=0,evN=0,dark=0,darkT=0,plat=null,shake=0,deadT=0,cause='',submitted=true,score=0,resT=0;
 function led(s){const e=$('ledtxt');e.textContent=s;e.style.animation='none';e.offsetWidth;e.style.animation=''}
 let msgTo=0;function msg(s){const e=$('msg');e.textContent=s;e.style.opacity=1;clearTimeout(msgTo);msgTo=setTimeout(()=>e.style.opacity=0,1300)}
-function start(){rs();st='play';t=0;cam=0;dist=0;mult=multT=1;py=GY;vy=0;onG=true;dbl=false;hold=false;spin=0;obs=[];items=[];parts=[];pops=[];scrolls=0;nextSpawn=W+200;spawnOn=true;ev=null;nextEv=9+R()*3;evN=0;dark=darkT=0;plat=null;shake=0;submitted=false;
+function start(){rs();st='play';t=0;cam=0;dist=0;mult=multT=1;py=GY;vy=0;onG=true;dbl=false;hold=false;spin=0;obs=[];items=[];parts=[];pops=[];scrolls=0;nextSpawn=W*2+400;spawnOn=true;ev=null;nextEv=9+R()*3;evN=0;dark=darkT=0;plat=null;shake=0;submitted=false;
  $('title').classList.add('hide');$('result').classList.add('hide');led('発車いたします　窓の外にご注目ください');msg('出発進行！')}
 function base(){return Math.min(780,300+t*7)}
 function addPole(x,h){obs.push({k:'p',x,w:10,h})}
@@ -120,7 +120,7 @@ function update(dt){
   for(const o of obs){if(o.k==='g'&&wx-8>o.x&&wx+8<o.x+o.w)solid=false}
   if(solid)sy=GY;
   for(const o of obs){if(o.x>wx+20||o.x+o.w<wx-20)continue;
-   if(o.k==='h'&&wx+9>o.x&&wx-9<o.x+o.w){const top=GY-o.h;if(pf<=top+2)sy=Math.min(sy,top);else if(py>top+6){die('家の壁に激突…');return}}
+   if(o.k==='h'&&wx+9>o.x&&wx-9<o.x+o.w){const top=GY-o.h;if(pf<=top+8)sy=Math.min(sy,top);else if(py>top+10){die('家の壁に激突…');return}}
    if(o.k==='p'&&wx+9>o.x&&wx-9<o.x+o.w&&py>GY-o.h+4&&py-34<GY){die('電柱に激突…');return}}
   if(py>=sy&&vy>=0){if(!onG&&vy>300)burst(NX,sy,'#bba',5);py=sy;vy=0;onG=true;dbl=false;lastG=t}else if(py<sy-1)onG=false;
   if(sy===Infinity&&py>GY+14){die('川に落ちた…');return}
