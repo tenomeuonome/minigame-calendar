@@ -16,6 +16,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #chant{position:absolute;left:0;right:0;top:6px;text-align:center;font-family:'Dela Gothic One',sans-serif;font-size:34px;letter-spacing:2px;text-shadow:0 3px 0 #000,0 0 12px #000;pointer-events:none;min-height:44px}
 #chant .now{color:#ffd54a;font-size:46px}
 #chant.look{color:#ff3b3b;font-size:48px}
+#chant.stare{color:#d7a6ff}#chant.tell{color:#ff9a3b}
 #msg{position:absolute;left:0;right:0;top:46%;text-align:center;font-family:'Dela Gothic One',sans-serif;font-size:40px;text-shadow:0 3px 0 #000,0 0 14px #000;pointer-events:none;opacity:0;transition:opacity .2s}
 #tip{position:absolute;left:8px;right:8px;bottom:8px;text-align:center;font-size:14px;font-weight:800;pointer-events:none;text-shadow:0 2px 3px #000;opacity:0;transition:opacity .2s}
 #ctrl{padding:8px 10px calc(10px + env(safe-area-inset-bottom));background:#2a1f48;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -56,9 +57,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
     <ul>
       <li>「すすむ」を<b>おしている間</b>だけ前へ進む。</li>
       <li>鬼が「ころんだ!」で振り向いたら<b>ピタッと止まる</b>。見つかったら終わり。</li>
+      <li>2回戦から鬼が<b>フェイント</b>。「!」が出たら途中でも振り向く(ちらっ/もう一回)。</li>
+      <li>3回戦から👁<b>にらみの呪文</b>(紫)。止まっていても見破られる。隠れるか手裏剣で!</li>
       <li>💧<b>すいとんの術</b>…池の中で潜る。息がもつ間は見られても泳いで進める。</li>
       <li>🧱<b>かべ隠れの術</b>…土塀の前で布をかぶる。4秒間、見られても進める。</li>
-      <li>✴️<b>手裏剣</b>…鬼が見ている時に投げると、ひるんで後ろを向く。</li>
+      <li>✴️<b>手裏剣</b>…鬼が見ている時に投げると、ひるんで後ろを向く(各ラウンド2個)。</li>
       <li>鬼にタッチでクリア。速さと残した術でボーナス。全10ラウンド。</li>
     </ul>
     <p>PC: ↑/スペース=すすむ　Z/X/C=術</p>
@@ -90,12 +93,16 @@ function newRound(){
   const z=[];let a=rnd(14,26);
   order.forEach((t,i)=>{const len=rnd(17,23)-round*.4;z.push({t,a,b:a+len});a=a+len+rnd(14,22);});
   if(round>=5){const t=pick(['pond','wall']);if(a<84)z.push({t,a,b:Math.min(90,a+10)});}
-  R={D:0,t:0,limit:Math.max(30,50-2*(round-1)),zones:z,kabe:2,shuri:2,breath:4,hid:null,kT:0,st:'ready',oT:0,ch:[],ci:-1,stall:false,lookDur:0,grace:0,moving:false};
+  R={D:0,t:0,limit:Math.max(28,44-2*(round-1)),zones:z,kabe:2,shuri:2,breath:4,hid:null,kT:0,st:'ready',oT:0,ch:[],ci:-1,stall:false,lookDur:0,grace:0,moving:false};
   setChant('');tip('ラウンド '+round+' はじめ!',1.5);
 }
 function zoneAt(t){return R.zones.some(z=>z.t===t&&R.D>=z.a&&R.D<=z.b);}
 function makeChant(){
-  const base=Math.max(.11,.34-.022*(round-1))*pick([.6,1,1,1.45]);
+  const base=Math.max(.16,.34-.02*(round-1))*pick([.6,1,1,1.45]);
+  R.stare=round>=3&&Math.random()<Math.min(.45,.2+.04*(round-3));
+  R.ev=-1;
+  if(!R.stare&&round>=2&&Math.random()<Math.min(.5,.25+.03*round)){R.ev=Math.floor(rnd(1,5));R.evT=Math.random()<.5?'cut':'peek';}
+  if(R.stare)tip('👁 にらみの呪文! 止まっていても見破られる',1.8);
   const type=pick(round<3?['n','n','sf','stall']:['n','sf','stall','stall','rush']);
   const ch=SYL.map((s,i)=>{let d=base*rnd(.8,1.2);
     if(type==='sf')d*=i<5?1.5:.55; if(type==='rush'&&i>=6)d*=.4; return {s,d,st:0};});
@@ -105,7 +112,15 @@ function makeChant(){
 function setChant(h,cls){const c=$('chant');c.innerHTML=h;c.className=cls||'';}
 function showChant(){
   const done=SYL.slice(0,R.ci).join('');const now=SYL[R.ci]||'';
-  setChant(done+'<span class="now">'+now+'</span>'+(R.stall?'…':''));
+  setChant((R.stare?'👁':'')+done+'<span class="now">'+now+'</span>'+(R.stall?'…':''),R.stare?'stare':'');
+}
+function startLook(kind){
+  R.st='look';R.oT=0;R.kind=kind;R.det=0;
+  R.lookDur=kind==='peek'?rnd(.7,1):kind==='stare'?rnd(2.6,3.4):rnd(1,1.8)+round*.05;
+  R.grace=Math.max(.16,.26-round*.01);
+  setChant(kind==='stare'?'じーっ…👁':kind==='peek'?'ちらっ!':kind==='dbl'?'もう一回!':'ころんだ!',kind==='stare'?'look stare':'look');shake=.15;
+}
+function tell(next,txt){R.st='tell';R.oT=0;R.tellNext=next;R.tellDur=Math.max(.3,.5-round*.02);setChant(txt,'tell');
 }
 let tipT=0,msgT=0;
 function tip(t,s){$('tip').textContent=t;$('tip').style.opacity=1;tipT=s||1.4;}
@@ -132,13 +147,18 @@ function update(dt){
       if(!R.stall&&c.st>0&&R.oT>=c.d){R.stall=true;showChant();}
       const need=c.d+c.st;
       if(R.oT<need)break;
-      R.oT-=need;R.stall=false;R.ci++;
-      if(R.ci>=SYL.length){R.st='look';R.oT=0;R.lookDur=rnd(1.2,2.1)+round*.09;R.grace=Math.max(.14,.26-round*.012);setChant('ころんだ!','look');shake=.15;break;}
+      R.oT-=need;R.stall=false;
+      if(R.ci===R.ev){R.ev=-1;tell(R.evT,SYL.slice(0,R.ci+1).join('')+'…!?');R.ci++;break;}
+      R.ci++;
+      if(R.ci>=SYL.length){startLook(R.stare?'stare':'normal');break;}
       showChant();
     }
-  }else if(R.st==='look'){if(R.oT>=R.lookDur){R.st='back';R.oT=0;setChant('');}}
+  }else if(R.st==='tell'){if(R.oT>=R.tellDur)startLook(R.tellNext);}
+  else if(R.st==='look'){if(R.oT>=R.lookDur){
+    if(R.kind==='peek'){R.st='chant';R.oT=0;showChant();}
+    else{R.dbl=(R.kind==='normal'||R.kind==='cut')&&round>=4&&Math.random()<.3;R.st='back';R.oT=0;setChant('');}}}
   else if(R.st==='stun'){if(R.oT>=1.3){R.st='back';R.oT=0;setChant('');}}
-  else if(R.st==='back'){if(R.oT>=.35)makeChant();}
+  else if(R.st==='back'){if(R.oT>=.35){if(R.dbl){R.dbl=false;tell('dbl','…!?');}else makeChant();}}
   // player
   const wasHid=R.hid;
   R.moving=false;
@@ -147,6 +167,7 @@ function update(dt){
   else R.breath=Math.min(4,R.breath+dt*.5);
   if(R.hid==='kabe'){R.kT-=dt;if(R.kT<=0){unhide();tip('布が外れた',1);}else if(!zoneAt('wall')){unhide();tip('土塀が終わった',1);}}
   if(R.st==='look'&&R.oT>R.grace&&R.moving&&!wasHid){fail('みつけた!');return;}
+  if(R.st==='look'&&R.kind==='stare'&&R.oT>R.grace){if(!R.hid){R.det+=dt;if(R.det>=1.3){fail('見破られた!');return;}}else R.det=Math.max(0,R.det-dt);}
   if(R.limit-R.t<=0){fail('時間切れ!');return;}
   if(R.D>=100){clearRound();}
 }
@@ -229,7 +250,8 @@ const py=()=>yOf(R.D);
 function drawOni(x,y){
   const st=R?R.st:'ready',face=st==='look',stun=st==='stun';
   cx.save();cx.translate(x,y);
-  if(st==='back'||(st==='chant'&&R.stall))cx.rotate(Math.sin(performance.now()/60)*.08);
+  if(st==='tell'){cx.rotate(Math.sin(performance.now()/35)*.2);cx.fillStyle='#ff4b4b';cx.font='900 30px sans-serif';cx.textAlign='center';cx.fillText('!',44,-30);cx.textAlign='start';}
+  else if(st==='back')cx.rotate(Math.sin(performance.now()/60)*.08);
   cx.fillStyle='#c8a24a';cx.fillRect(-26,30,52,26);// body/hakama
   cx.fillStyle='#f5d33a';[[-1],[1]].forEach(([s])=>{cx.beginPath();cx.moveTo(s*14,-26);cx.lineTo(s*26,-50);cx.lineTo(s*28,-22);cx.fill();});
   cx.fillStyle='#e0372f';cx.beginPath();cx.arc(0,0,34,0,7);cx.fill();
@@ -267,7 +289,7 @@ function draw(){
         cx.fillStyle='#fff';cx.font='800 12px sans-serif';cx.fillText('土塀 🧱',10,y1+16);}
     }
     cx.strokeStyle='rgba(255,255,255,.6)';cx.setLineDash([6,6]);cx.beginPath();cx.moveTo(20,BOT()+18);cx.lineTo(W-20,BOT()+18);cx.stroke();cx.setLineDash([]);
-    if(R.st==='look'){cx.fillStyle='rgba(255,40,40,'+(R.oT<R.grace?.12:.22)+')';cx.beginPath();cx.moveTo(W/2,105);cx.lineTo(-20,H);cx.lineTo(W+20,H);cx.fill();}
+    if(R.st==='look'){cx.fillStyle=(R.kind==='stare'?'rgba(170,60,255,':'rgba(255,40,40,')+(R.oT<R.grace?.12:.22)+')';cx.beginPath();cx.moveTo(W/2,105);cx.lineTo(-20,H);cx.lineTo(W+20,H);cx.fill();}
   }
   drawOni(W/2,105);
   if(R){
@@ -282,6 +304,7 @@ function draw(){
       cx.fillStyle='#000';cx.fillRect(x+16,y-34,4,8);
       cx.fillStyle='rgba(255,255,255,.9)';cx.fillRect(x-26,y+16,52*(R.kT/4),4);
     }else{
+      if(R.st==='look'&&R.kind==='stare'){cx.fillStyle='#000';cx.fillRect(x-26,y-34,52,6);cx.fillStyle='#c060ff';cx.fillRect(x-26,y-34,52*Math.min(1,R.det/1.3),6);}
       cx.font='40px serif';cx.textAlign='center';cx.textBaseline='middle';
       const bob=R.moving?Math.sin(performance.now()/70)*3:0;cx.fillText('🥷',x,y+bob);cx.textAlign='start';cx.textBaseline='alphabetic';
     }
