@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>弁当箱パズル</title>
+<style>
+  body { margin:0; background:#2a1f14; color:#f5ead8; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:460px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wrap { position:relative; }
+  canvas { background:#e8d4a8; border:4px solid #7a4a2a; border-radius:8px; display:block; touch-action:none; }
+  #toast { height:20px; text-align:center; font-size:14px; font-weight:bold; color:#ffd24a; margin-top:6px; }
+  #candidates { display:flex; gap:10px; margin-top:14px; }
+  .piece-card { background:#3a2a18; border:3px solid #5a3f24; border-radius:10px; padding:8px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; }
+  .piece-card.selected { border-color:#ffd24a; box-shadow:0 0 10px rgba(255,210,74,.6); }
+  .piece-grid { display:grid; gap:2px; }
+  .piece-cell { width:22px; height:22px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .piece-cell.on { background:#e8d4a8; }
+  .piece-card button { font-size:13px; padding:4px 10px; border-radius:8px; border:none; background:#5a3f24; color:#fff; cursor:pointer; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.8); border-radius:8px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:460px; font-size:13px; color:#d8c0a0; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🍱 弁当箱パズル</h1>
+  <div id="hud">
+    <div>詰めたマス: <span id="score">0</span></div>
+    <div>レベル: <span id="level">1</span></div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="460" height="380"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <div id="candidates"></div>
+  <div id="help">
+    おかずを1つ選んで(カードをクリック)、弁当箱の中でマウスを動かすと置ける場所がプレビューされる。
+    クリックで決定、🔄で回転。置けなくなったら終了。レベルが上がると箱が大きくなり、おかずの種類も増える。
+  </div>
+
+<script>
+const SHAPES = [
+  { cells: [[0,0]], emoji: '🍅', color: '#d84a3a', tier: 1 },
+  { cells: [[0,0],[1,0]], emoji: '🍙', color: '#f0f0f0', tier: 1 },
+  { cells: [[0,0],[0,1]], emoji: '🥚', color: '#f0c860', tier: 1 },
+  { cells: [[0,0],[0,1],[1,0]], emoji: '🥦', color: '#4a9a4a', tier: 2 },
+  { cells: [[0,0],[0,1],[0,2]], emoji: '🍤', color: '#e89a6a', tier: 2 },
+  { cells: [[0,0],[1,0],[1,1],[2,1]], emoji: '🍳', color: '#f0d060', tier: 3 },
+  { cells: [[0,0],[0,1],[1,0],[1,1]], emoji: '🧀', color: '#f0c020', tier: 3 },
+  { cells: [[0,0],[0,1],[0,2],[1,2]], emoji: '🍗', color: '#c08a4a', tier: 4 },
+  { cells: [[0,0],[0,1],[0,2],[0,3]], emoji: '🥕', color: '#e08030', tier: 4 },
+];
+
+let state = {};
+
+function normalize(cells) {
+  const minR = Math.min(...cells.map(c => c[0])), minC = Math.min(...cells.map(c => c[1]));
+  return cells.map(c => [c[0] - minR, c[1] - minC]);
+}
+function rotateCells(cells) {
+  const maxR = Math.max(...cells.map(c => c[0]));
+  return normalize(cells.map(([r, c]) => [c, maxR - r]));
+}
+function randomPiece(tier) {
+  const pool = SHAPES.filter(s => s.tier <= tier);
+  const base = pool[Math.floor(Math.random() * pool.length)];
+  return { shape: base, cells: normalize(base.cells) };
+}
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    level: 1, rows: 4, cols: 5, score: 0, tier: 1,
+    grid: null, candidates: [], selected: null, hover: null, running: true,
+  };
+  newBox();
+}
+
+function newBox() {
+  state.grid = Array.from({ length: state.rows }, () => Array(state.cols).fill(null));
+  state.filled = 0;
+  state.candidates = [randomPiece(state.tier), randomPiece(state.tier), randomPiece(state.tier)];
+  state.selected = null;
+  renderCandidates();
+  updateHud();
+  checkGameOver();
+  render();
+}
+
+function updateHud() {
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('level').textContent = state.level;
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1400);
+}
+
+function cellSize() {
+  const canvas = document.getElementById('game');
+  return Math.floor(Math.min((canvas.width - 16) / state.cols, (canvas.height - 16) / state.rows));
+}
+function gridOrigin() {
+  const canvas = document.getElementById('game');
+  const cs = cellSize();
+  return { x: (canvas.width - cs * state.cols) / 2, y: (canvas.height - cs * state.rows) / 2, cs };
+}
+
+function canPlaceAt(cells, r0, c0) {
+  for (const [dr, dc] of cells) {
+    const r = r0 + dr, c = c0 + dc;
+    if (r < 0 || r >= state.rows || c < 0 || c >= state.cols || state.grid[r][c]) return false;
+  }
+  return true;
+}
+function canPlaceAnywhere(cells) {
+  let cur = cells;
+  for (let rot = 0; rot < 4; rot++) {
+    for (let r = 0; r < state.rows; r++) {
+      for (let c = 0; c < state.cols; c++) {
+        if (canPlaceAt(cur, r, c)) return true;
+      }
+    }
+    cur = rotateCells(cur);
+  }
+  return false;
+}
+function checkGameOver() {
+  const anyFits = state.candidates.some(cand => canPlaceAnywhere(cand.cells));
+  if (!anyFits) endGame();
+  return !anyFits;
+}
+
+function renderCandidates() {
+  const box = document.getElementById('candidates');
+  box.innerHTML = '';
+  state.candidates.forEach((cand, idx) => {
+    const card = document.createElement('div');
+    card.className = 'piece-card' + (state.selected === idx ? ' selected' : '');
+    const maxR = Math.max(...cand.cells.map(c => c[0])) + 1;
+    const maxC = Math.max(...cand.cells.map(c => c[1])) + 1;
+    const grid = document.createElement('div');
+    grid.className = 'piece-grid';
+    grid.style.gridTemplateColumns = `repeat(${maxC}, 22px)`;
+    for (let r = 0; r < maxR; r++) {
+      for (let c = 0; c < maxC; c++) {
+        const on = cand.cells.some(([dr, dc]) => dr === r && dc === c);
+        const cell = document.createElement('div');
+        cell.className = 'piece-cell' + (on ? ' on' : '');
+        if (on) { cell.textContent = cand.shape.emoji; cell.style.background = cand.shape.color + '55'; }
+        grid.appendChild(cell);
+      }
+    }
+    card.appendChild(grid);
+    const rotBtn = document.createElement('button');
+    rotBtn.textContent = '🔄 回転';
+    rotBtn.onclick = (e) => { e.stopPropagation(); cand.cells = rotateCells(cand.cells); renderCandidates(); };
+    card.appendChild(rotBtn);
+    card.onclick = () => { state.selected = (state.selected === idx) ? null : idx; renderCandidates(); render(); };
+    box.appendChild(card);
+  });
+}
+
+function cellFromEvent(e) {
+  const canvas = document.getElementById('game');
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const { x: ox, y: oy, cs } = gridOrigin();
+  const c = Math.floor((x - ox) / cs), r = Math.floor((y - oy) / cs);
+  if (r < 0 || r >= state.rows || c < 0 || c >= state.cols) return null;
+  return { r, c };
+}
+
+function tryPlace(cellPos) {
+  if (!state.running || state.selected === null || !cellPos) return;
+  const cand = state.candidates[state.selected];
+  if (!canPlaceAt(cand.cells, cellPos.r, cellPos.c)) { toast('そこには置けないよ'); return; }
+  cand.cells.forEach(([dr, dc]) => {
+    state.grid[cellPos.r + dr][cellPos.c + dc] = { emoji: cand.shape.emoji, color: cand.shape.color };
+  });
+  state.filled += cand.cells.length;
+  state.score += cand.cells.length;
+  state.candidates[state.selected] = randomPiece(state.tier);
+  state.selected = null;
+  updateHud();
+  renderCandidates();
+
+  if (state.filled / (state.rows * state.cols) >= 0.85) {
+    state.level++;
+    state.rows = Math.min(7, 4 + Math.floor((state.level - 1) / 1));
+    state.cols = Math.min(8, 5 + Math.floor((state.level - 1) / 1));
+    state.tier = Math.min(4, 1 + Math.floor(state.level / 2));
+    toast(`レベル${state.level}！箱が大きくなった`);
+    newBox();
+    return;
+  }
+  if (!checkGameOver()) render();
+}
+
+const canvas = document.getElementById('game');
+canvas.addEventListener('pointermove', e => { state.hover = cellFromEvent(e); render(); });
+canvas.addEventListener('pointerleave', () => { state.hover = null; render(); });
+canvas.addEventListener('click', e => { tryPlace(cellFromEvent(e)); });
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '🍱 もう詰められない！';
+  document.getElementById('msgText').textContent = `詰めたマス: ${state.score}\nレベル: ${state.level}`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
+}
+
+function render() {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const { x: ox, y: oy, cs } = gridOrigin();
+
+  for (let r = 0; r < state.rows; r++) {
+    for (let c = 0; c < state.cols; c++) {
+      const x = ox + c * cs, y = oy + r * cs;
+      const cell = state.grid[r][c];
+      ctx.fillStyle = cell ? cell.color + 'aa' : (r + c) % 2 === 0 ? '#f0e0b8' : '#ecd8ac';
+      ctx.fillRect(x, y, cs - 2, cs - 2);
+      if (cell) {
+        ctx.font = `${Math.floor(cs * 0.55)}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(cell.emoji, x + cs / 2, y + cs / 2 + 1);
+      }
+    }
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+  if (state.selected !== null && state.hover) {
+    const cand = state.candidates[state.selected];
+    const ok = canPlaceAt(cand.cells, state.hover.r, state.hover.c);
+    cand.cells.forEach(([dr, dc]) => {
+      const r = state.hover.r + dr, c = state.hover.c + dc;
+      if (r < 0 || r >= state.rows || c < 0 || c >= state.cols) return;
+      const x = ox + c * cs, y = oy + r * cs;
+      ctx.fillStyle = ok ? 'rgba(80,220,120,0.55)' : 'rgba(220,60,60,0.55)';
+      ctx.fillRect(x, y, cs - 2, cs - 2);
+    });
+  }
+}
+
+resetGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>捨て猫の段ボール</title>
+<style>
+  body { margin:0; background:#2a2a3a; color:#eef; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:720px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wrap { position:relative; }
+  canvas { background:#8a8a9a; border:3px solid #4a4a5a; border-radius:10px; display:block; }
+  #cryBtn { margin-top:14px; font-size:18px; padding:14px 42px; border-radius:14px; border:none; background:#e8707a; color:#fff; cursor:pointer; font-weight:bold; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.8); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:720px; font-size:13px; color:#c8c8e0; margin-top:10px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>📦 捨て猫の段ボール</h1>
+  <div id="hud">
+    <div>保護してもらえた人数: <span id="score">0</span></div>
+    <div id="status">まわりに誰もいない…</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="720" height="320"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <button id="cryBtn" onclick="cry()">🐱 ニャー！</button>
+  <div id="help">
+    「ニャー！」(またはスペースキー)で鳴いて通行人に気づいてもらう。<b>鳴いた瞬間に犬🐶か鳥🐦が近くにいると見つかってゲームオーバー</b>。
+    人🚶が近くにいるときだけ鳴こう。だんだん犬や鳥も増えて気が抜けない。
+  </div>
+
+<script>
+const W = 720, H = 320;
+const BOX_X = 110, BOX_Y = 230;
+const RANGE_MIN = 55, RANGE_MAX = 260;
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    score: 0, running: true, passersby: [], spawnTimer: 40, cryCooldown: 0, flash: null, flashTimer: 0,
+  };
+  render();
+}
+
+function spawn() {
+  const roll = Math.random();
+  const dogBirdChance = Math.min(0.42, 0.18 + state.score * 0.015);
+  let type;
+  if (roll < dogBirdChance * 0.55) type = 'dog';
+  else if (roll < dogBirdChance) type = 'bird';
+  else type = 'person';
+  state.passersby.push({
+    type, x: W + 20, y: type === 'bird' ? 120 + Math.random() * 40 : BOX_Y,
+    speed: 1.4 + Math.random() * 1.0 + Math.min(1.5, state.score * 0.05),
+  });
+}
+
+function cry() {
+  if (!state.running || state.cryCooldown > 0) return;
+  state.cryCooldown = 15;
+  state.flash = 'ニャー！'; state.flashTimer = 20;
+
+  const inRange = state.passersby.filter(p => p.x > RANGE_MIN && p.x < RANGE_MAX);
+  const danger = inRange.find(p => p.type === 'dog' || p.type === 'bird');
+  if (danger) return endGame(danger.type === 'dog' ? '🐶 犬に見つかった！' : '🐦 鳥に見つかった！');
+
+  const person = inRange.find(p => p.type === 'person');
+  if (person) {
+    state.score++;
+    state.passersby = state.passersby.filter(p => p !== person);
+    document.getElementById('score').textContent = state.score;
+    state.flash = '🏠 保護してもらえた！'; state.flashTimer = 30;
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); cry(); } });
+
+function update() {
+  if (!state.running) return;
+  if (state.cryCooldown > 0) state.cryCooldown--;
+  if (state.flashTimer > 0) state.flashTimer--; else state.flash = null;
+
+  state.spawnTimer--;
+  if (state.spawnTimer <= 0) {
+    spawn();
+    state.spawnTimer = Math.max(22, 55 - state.score * 1.2) + Math.random() * 20;
+  }
+
+  for (let i = state.passersby.length - 1; i >= 0; i--) {
+    const p = state.passersby[i];
+    p.x -= p.speed;
+    if (p.x < -30) state.passersby.splice(i, 1);
+  }
+
+  const inRange = state.passersby.filter(p => p.x > RANGE_MIN && p.x < RANGE_MAX);
+  const statusEl = document.getElementById('status');
+  if (inRange.some(p => p.type === 'dog' || p.type === 'bird')) statusEl.textContent = '⚠️ 犬か鳥が近くにいる…鳴くな！';
+  else if (inRange.some(p => p.type === 'person')) statusEl.textContent = '🚶 人が近くにいる！今だ！';
+  else statusEl.textContent = 'まわりに誰もいない…';
+
+  render();
+}
+
+function endGame(title) {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgText').textContent = `保護してもらえた人数: ${state.score}人`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = '#9a9aac'; ctx.fillRect(0, 200, W, H - 200);
+  ctx.fillStyle = '#6a6a7a'; ctx.fillRect(0, 196, W, 6);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.setLineDash([6, 8]);
+  ctx.beginPath(); ctx.moveTo(RANGE_MIN, 0); ctx.lineTo(RANGE_MIN, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(RANGE_MAX, 0); ctx.lineTo(RANGE_MAX, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.font = '46px sans-serif';
+  ctx.fillText('📦', BOX_X - 24, BOX_Y + 18);
+  ctx.font = '26px sans-serif';
+  ctx.fillText('🐱', BOX_X - 10, BOX_Y + 6);
+
+  ctx.font = '36px sans-serif';
+  state.passersby.forEach(p => {
+    const icon = p.type === 'person' ? '🚶' : p.type === 'dog' ? '🐶' : '🐦';
+    ctx.fillText(icon, p.x, p.y + 12);
+  });
+
+  if (state.flash) {
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.flash, W / 2, 40);
+    ctx.textAlign = 'left';
+  }
+}
+
+setInterval(update, 1000 / 30);
+resetGame();
+</script>
+</body>
+</html>

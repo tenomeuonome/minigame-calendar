@@ -35,5 +35,8 @@
   {"date":"2026-11-18","title":"猫のティッシュいたずら（飼い主に見つからず散らかす）","file":"games/neko-tissue.html","score":{"order":"desc","unit":"枚","min":0,"max":500,"decimals":0,"label":"見つかるまでに散らかしたティッシュ"}},
   {"date":"2026-11-19","title":"忍者だるまさんが転んだ（すいとん・かべ隠れ・手裏剣で鬼にタッチ）","file":"games/ninja-darumasan.html","score":{"order":"desc","unit":"点","min":0,"max":30000,"decimals":0,"label":"全10ラウンドの合計点"}},
   {"date":"2026-11-20","title":"耕運機の燃費チャレンジ（ラジコン操作で畑を耕す）","file":"games/kouunki-nenpi.html","score":{"order":"desc","unit":"マス/L","min":0,"max":15,"decimals":2,"label":"耕したマス数÷使った燃料(L)"}},
-  {"date":"2026-11-21","title":"たんぽぽの綿毛（風に乗ってどこまでも）","file":"games/tanpopo-watage.html","score":{"order":"desc","unit":"m","min":0,"max":2000,"decimals":0,"label":"飛んだ距離"}}
+  {"date":"2026-11-21","title":"たんぽぽの綿毛（風に乗ってどこまでも）","file":"games/tanpopo-watage.html","score":{"order":"desc","unit":"m","min":0,"max":2000,"decimals":0,"label":"飛んだ距離"}},
+  {"date":"2026-11-22","title":"弁当箱パズル（おかず詰め込み）","file":"games/bento-tsumekomi.html","score":{"order":"desc","unit":"マス","min":0,"max":300,"decimals":0,"label":"詰めたマス数"}},
+  {"date":"2026-11-23","title":"捨て猫の段ボール（鳴いて気づいてもらおう）","file":"games/sutego-nyaa.html","score":{"order":"desc","unit":"人","min":0,"max":100,"decimals":0,"label":"見つかる前に保護してもらえた人数"}},
+  {"date":"2026-11-24","title":"鴨の親子横断（コガモは一羽ずつ）","file":"games/kamo-oyako-koudan.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"渡れた羽数×50－手数"}}
 ]

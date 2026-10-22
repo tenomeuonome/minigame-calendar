@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鴨の親子横断</title>
+<style>
+  body { margin:0; background:#1a2a1a; color:#eef5ea; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:560px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wrap { position:relative; }
+  canvas { background:#4a7a3a; border:3px solid #2a4a1a; border-radius:10px; display:block; touch-action:none; }
+  #ctl { display:grid; grid-template-columns:repeat(3,56px); grid-template-rows:repeat(2,48px); gap:8px; margin-top:12px; justify-content:center; }
+  #ctl button { font-size:18px; border-radius:10px; border:none; background:#3a6a2a; color:#fff; cursor:pointer; user-select:none; }
+  #ctl button:active { background:#5a8a4a; }
+  #btnUp { grid-column:2; grid-row:1; }
+  #btnDown { grid-column:2; grid-row:2; }
+  #btnLeft { grid-column:1; grid-row:1/3; }
+  #btnRight { grid-column:3; grid-row:1/3; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.8); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:560px; font-size:13px; color:#c8e0c0; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🦆 鴨の親子横断</h1>
+  <div id="hud">
+    <div>残り子ガモ: <span id="remain">6</span></div>
+    <div>渡れた: <span id="saved">0</span></div>
+    <div>手数: <span id="moves">0</span></div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="560" height="390"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="ctl">
+    <button id="btnUp">▲</button>
+    <button id="btnLeft">◀</button>
+    <button id="btnRight">▶</button>
+    <button id="btnDown">▼</button>
+  </div>
+  <div id="help">
+    矢印キー(↑↓←→)かボタンで、子ガモを1羽ずつ道路の向こうへ渡す。母ガモは道の手前で待っている。
+    車に当たるとその子は失ってしまうが、残りの子で続行。<b>全部はねられるとゲームオーバー</b>。
+    手数(ボタンを押した回数)が少ないほどハイスコア、無駄な左右移動は減らそう。
+  </div>
+
+<script>
+const COLS = 7, ROWS = 6, CELL = 80, CELLH = 65;
+const TOTAL_DUCKS = 6;
+let state = {};
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    duckRow: 0, duckCol: 3, saved: 0, hit: 0, processed: 0, moves: 0,
+    moveCooldown: 0, running: true, flash: null, flashTimer: 0, cars: [],
+  };
+  state.lanes = [1, 2, 3, 4].map((row, i) => ({
+    row, dir: i % 2 === 0 ? 1 : -1, speed: 1.8 + i * 0.4, spawnTimer: 20 + i * 15,
+  }));
+  state.lanes.forEach(lane => {
+    for (let i = 0; i < 2; i++) {
+      state.cars.push({ row: lane.row, x: Math.random() * COLS * CELL, dir: lane.dir, speed: lane.speed });
+    }
+  });
+  updateHud();
+  render();
+}
+
+function updateHud() {
+  document.getElementById('remain').textContent = TOTAL_DUCKS - state.processed;
+  document.getElementById('saved').textContent = state.saved;
+  document.getElementById('moves').textContent = state.moves;
+}
+
+function move(dr, dc) {
+  if (!state.running || state.moveCooldown > 0) return;
+  state.moveCooldown = 6;
+  state.moves++;
+  state.duckRow = Math.max(0, Math.min(ROWS - 1, state.duckRow + dr));
+  state.duckCol = Math.max(0, Math.min(COLS - 1, state.duckCol + dc));
+  updateHud();
+  checkDuck();
+}
+
+document.getElementById('btnUp').onclick = () => move(-1, 0);
+document.getElementById('btnDown').onclick = () => move(1, 0);
+document.getElementById('btnLeft').onclick = () => move(0, -1);
+document.getElementById('btnRight').onclick = () => move(0, 1);
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+  if (e.key === 'ArrowUp') move(-1, 0);
+  if (e.key === 'ArrowDown') move(1, 0);
+  if (e.key === 'ArrowLeft') move(0, -1);
+  if (e.key === 'ArrowRight') move(0, 1);
+});
+
+function nextDuck() {
+  state.processed++;
+  state.duckRow = 0;
+  state.duckCol = 2 + Math.floor(Math.random() * 3);
+  if (state.processed >= TOTAL_DUCKS) return finishGame();
+  updateHud();
+}
+
+function checkDuck() {
+  if (state.duckRow === ROWS - 1) {
+    state.saved++;
+    state.flash = '🏠 1羽、渡れた！'; state.flashTimer = 30;
+    nextDuck();
+    return;
+  }
+  checkCollision();
+}
+
+function checkCollision() {
+  if (state.duckRow < 1 || state.duckRow > 4) return;
+  const hitCar = state.cars.some(c => c.row === state.duckRow &&
+    Math.abs(c.x - (state.duckCol * CELL + CELL / 2)) < CELL * 0.6);
+  if (hitCar) {
+    state.hit++;
+    state.flash = '💥 はねられた…'; state.flashTimer = 30;
+    nextDuck();
+  }
+}
+
+function finishGame() {
+  state.running = false;
+  const score = Math.max(0, state.saved * 50 - state.moves);
+  const ok = state.saved > 0;
+  document.getElementById('msgTitle').textContent = ok ? '🦆 お疲れ様！' : '💥 全滅…ゲームオーバー';
+  document.getElementById('msgText').textContent = `渡れた: ${state.saved}羽 / はねられた: ${state.hit}羽\n手数: ${state.moves}\nスコア: ${score}`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(score), 1200);
+}
+
+function update() {
+  if (!state.running) return;
+  if (state.moveCooldown > 0) state.moveCooldown--;
+  if (state.flashTimer > 0) state.flashTimer--; else state.flash = null;
+
+  state.lanes.forEach(lane => {
+    lane.spawnTimer--;
+    if (lane.spawnTimer <= 0) {
+      state.cars.push({ row: lane.row, x: lane.dir > 0 ? -40 : COLS * CELL + 40, dir: lane.dir, speed: lane.speed * (1 + state.processed * 0.04) });
+      lane.spawnTimer = 55 + Math.random() * 55;
+    }
+  });
+  state.cars.forEach(c => { c.x += c.dir * c.speed; });
+  state.cars = state.cars.filter(c => c.x > -80 && c.x < COLS * CELL + 80);
+
+  checkCollision();
+  render();
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#5a9a4a'; ctx.fillRect(0, 0, canvas.width, CELLH);
+  ctx.fillStyle = '#5a9a4a'; ctx.fillRect(0, (ROWS - 1) * CELLH, canvas.width, CELLH);
+  ctx.fillStyle = '#6a6a6a'; ctx.fillRect(0, CELLH, canvas.width, (ROWS - 2) * CELLH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.setLineDash([16, 14]); ctx.lineWidth = 2;
+  for (let r = 1; r < ROWS - 1; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r * CELLH); ctx.lineTo(canvas.width, r * CELLH); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  ctx.font = '32px sans-serif';
+  state.cars.forEach(c => { ctx.fillText(c.dir > 0 ? '🚗' : '🚙', c.x - 16, c.row * CELLH + CELLH * 0.72); });
+
+  ctx.font = '26px sans-serif';
+  ctx.fillText('🦆', 14, (ROWS - 1) * CELLH + CELLH * 0.68);
+  ctx.font = '13px sans-serif'; ctx.fillStyle = '#eef5ea';
+  ctx.fillText(`待機中あと${TOTAL_DUCKS - state.processed - 1}羽`, 50, (ROWS - 1) * CELLH + CELLH * 0.62);
+
+  ctx.font = '30px sans-serif';
+  ctx.fillText('🏠', canvas.width - 44, CELLH * 0.68);
+
+  if (state.running) {
+    ctx.font = '30px sans-serif';
+    ctx.fillText('🐤', state.duckCol * CELL + CELL / 2 - 15, state.duckRow * CELLH + CELLH * 0.7);
+  }
+
+  if (state.flash) {
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.flash, canvas.width / 2, 24);
+    ctx.textAlign = 'left';
+  }
+}
+
+setInterval(update, 1000 / 30);
+resetGame();
+</script>
+</body>
+</html>
