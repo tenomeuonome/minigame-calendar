@@ -34,6 +34,10 @@ db.exec(`
     ip TEXT NOT NULL, at INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS scores_game ON scores(game, score);
   CREATE TABLE IF NOT EXISTS announced (date TEXT PRIMARY KEY, game TEXT, at INTEGER);
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY, game TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL,
+    ip TEXT NOT NULL, at INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS comments_game ON comments(game, at);
 `);
 
 // ---------- ゲーム一覧 ----------
@@ -82,14 +86,23 @@ function readBody(req) {
 // ランキングに出す名前のチェック。人に見える場所なので、ひどい言葉は止める
 const NG_WORDS = ['死ね', 'しね', '殺す', 'ころす', 'ちんこ', 'ちんぽ', 'まんこ', 'うんこ', 'セックス', 'せっくす',
   'fuck', 'shit', 'bitch', 'nigger', 'nigga', 'sex', 'porn', 'ガイジ', 'がいじ', 'キチガイ', 'きちがい', 'http', 'www.'];
+// カタカナはひらがなにそろえ、記号や空白を抜いてから調べる(シ・ネ のような書き方もはじく)
+const kana = s => s.normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+function hasNgWord(text) {
+  const flat = kana(text).replace(/[\s._\-・ー~〜!！?？*＊]/g, '');
+  return NG_WORDS.some(w => flat.includes(kana(w)));
+}
 function cleanName(raw) {
   const name = String(raw || '').normalize('NFKC').replace(/[\u0000-\u001f\u007f<>]/g, '').trim();
   if (!name || [...name].length > 12) return null;
-  // カタカナはひらがなにそろえ、記号や空白を抜いてから調べる(シ・ネ のような書き方もはじく)
-  const kana = s => s.normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
-  const flat = kana(name).replace(/[\s._\-・ー~〜!！?？*＊]/g, '');
-  if (NG_WORDS.some(w => flat.includes(kana(w)))) return null;
+  if (hasNgWord(name)) return null;
   return name;
+}
+function cleanComment(raw) {
+  const text = String(raw || '').normalize('NFKC').replace(/[\u0000-\u0009\u000b-\u001f\u007f<>]/g, '').trim();
+  if (!text || [...text].length > 200) return null;
+  if (hasNgWord(text)) return null;
+  return text;
 }
 
 function ranking(game, limit = 20) {
@@ -104,6 +117,7 @@ function ranking(game, limit = 20) {
 
 // ---------- API ----------
 const lastScoreAt = new Map();
+const lastCommentAt = new Map();
 
 async function api(req, res, url) {
   const p = url.pathname;
@@ -151,6 +165,29 @@ async function api(req, res, url) {
     const g = findGame(url.searchParams.get('game') || '');
     if (!g || !g.score) return send(res, 404, { error: 'no ranking' });
     return send(res, 200, { game: g.slug, title: g.title, score: g.score, ranking: ranking(g, 50) });
+  }
+
+  if (p === '/api/comments' && req.method === 'GET') {
+    const g = findGame(url.searchParams.get('game') || '');
+    if (!g) return send(res, 404, { error: 'no such game' });
+    const list = db.prepare('SELECT name, text, at FROM comments WHERE game = ? ORDER BY at DESC LIMIT 50').all(g.slug);
+    return send(res, 200, { game: g.slug, title: g.title, comments: list });
+  }
+
+  if (p === '/api/comment' && req.method === 'POST') {
+    const body = await readBody(req);
+    const g = findGame(String(body.game || ''));
+    if (!g) return send(res, 404, { error: 'no such game' });
+    const name = cleanName(body.name);
+    if (!name) return send(res, 400, { error: '名前は12文字までで、使えない言葉が入っていないものにしてね' });
+    const text = cleanComment(body.text);
+    if (!text) return send(res, 400, { error: '感想は200文字までで、使えない言葉が入っていないものにしてね' });
+    const ip = clientIp(req), now = Date.now();
+    if (now - (lastCommentAt.get(ip) || 0) < 3000) return send(res, 429, { error: 'ちょっと待ってからもう一度' });
+    lastCommentAt.set(ip, now);
+    db.prepare('INSERT INTO comments (game, name, text, ip, at) VALUES (?, ?, ?, ?, ?)').run(g.slug, name, text, ip, now);
+    const list = db.prepare('SELECT name, text, at FROM comments WHERE game = ? ORDER BY at DESC LIMIT 50').all(g.slug);
+    return send(res, 200, { ok: true, comments: list });
   }
 
   return send(res, 404, { error: 'not found' });

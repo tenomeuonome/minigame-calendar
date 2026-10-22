@@ -61,7 +61,8 @@
   .item { background: var(--panel); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
   .item .t { font-weight: 700; line-height: 1.4; text-decoration: none; }
   .item .t:hover { text-decoration: underline; }
-  .item .stats { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .item .stats { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .item .stats .star { background: none; border: 0; color: var(--gold); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; }
   .item .stats a { color: var(--gold); text-decoration: none; }
   .item .go { grid-row: 1 / span 2; grid-column: 2; background: var(--accent); color: #fff; text-decoration: none; font-weight: 800; font-size: 13px; border-radius: 999px; padding: 8px 14px; white-space: nowrap; }
   footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 36px; }
@@ -75,6 +76,8 @@
   </header>
 
   <section id="todayBox"></section>
+
+  <section id="favBox"></section>
 
   <h2>カレンダー</h2>
   <div id="monthNav">
@@ -100,6 +103,37 @@ const fmtScore = (v, sc) => {
 };
 const rankLink = g => g.score ? `<a href="ranking.html?game=${encodeURIComponent(g.slug)}">🏆 ${g.top ? esc(g.top.name) + ' ' + fmtScore(g.top.score, g.score) : 'ランキング'}</a>` : '';
 
+// お気に入り(☆)はこの端末のlocalStorageだけで管理(ゲーム側のgc.jsと同じキーを共有)
+const FAV_KEY = 'gc-favorites', LAST_KEY = 'gc-lastplayed';
+const loadFavs = () => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch (e) { return []; } };
+const saveFavs = arr => { try { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); } catch (e) {} };
+const loadLast = () => { try { return JSON.parse(localStorage.getItem(LAST_KEY) || '{}'); } catch (e) { return {}; } };
+const isFav = slug => loadFavs().includes(slug);
+const starBtn = slug => `<button type="button" class="star" data-fav="${esc(slug)}" title="お気に入り">${isFav(slug) ? '★' : '☆'}</button>`;
+function toggleFav(slug) {
+  const favs = loadFavs();
+  saveFavs(favs.includes(slug) ? favs.filter(s => s !== slug) : [...favs, slug]);
+  renderFav(); renderList();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-fav]');
+  if (b) { e.preventDefault(); toggleFav(b.dataset.fav); }
+});
+
+function renderFav() {
+  const box = document.getElementById('favBox');
+  const last = loadLast();
+  const items = loadFavs().map(slug => games.find(g => g.slug === slug)).filter(Boolean)
+    .sort((a, b) => (last[b.slug] || 0) - (last[a.slug] || 0)).slice(0, 10);
+  if (!items.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<h2>⭐ お気に入り</h2><ul class="list">` + items.map(g => `
+    <li class="item">
+      <a class="t" href="${esc(g.href)}">${esc(g.title)}</a>
+      <a class="go" href="${esc(g.href)}">▶ あそぶ</a>
+      <div class="stats">${starBtn(g.slug)}<span>${mdw(g.date)}</span><span>👀 ${g.plays.toLocaleString()}回</span>${rankLink(g)}</div>
+    </li>`).join('') + '</ul>';
+}
+
 let games = [], today = '', viewY, viewM, minYM, maxYM;
 
 async function load() {
@@ -111,7 +145,7 @@ async function load() {
   const first = games.map(g => g.date).sort()[0] || today;
   minYM = first.slice(0, 7); maxYM = today.slice(0, 7);
   selected = today;
-  renderToday(); renderCal(); renderList();
+  renderToday(); renderCal(); renderList(); renderFav();
 }
 
 // 上の枠: 最初は今日のゲーム。カレンダーで選んだ日に切り替わる
@@ -176,7 +210,7 @@ function renderList() {
     <li class="item">
       <a class="t" href="${esc(g.href)}">${esc(g.title)}</a>
       <a class="go" href="${esc(g.href)}">▶ あそぶ</a>
-      <div class="stats"><span>${mdw(g.date)}</span><span>👀 ${g.plays.toLocaleString()}回</span>${rankLink(g)}</div>
+      <div class="stats">${starBtn(g.slug)}<span>${mdw(g.date)}</span><span>👀 ${g.plays.toLocaleString()}回</span>${rankLink(g)}</div>
     </li>`).join('');
 }
 
