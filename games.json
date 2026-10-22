@@ -38,5 +38,6 @@
   {"date":"2026-11-21","title":"たんぽぽの綿毛（風に乗ってどこまでも）","file":"games/tanpopo-watage.html","score":{"order":"desc","unit":"m","min":0,"max":2000,"decimals":0,"label":"飛んだ距離"}},
   {"date":"2026-11-22","title":"弁当箱パズル（おかず詰め込み）","file":"games/bento-tsumekomi.html","score":{"order":"desc","unit":"マス","min":0,"max":300,"decimals":0,"label":"詰めたマス数"}},
   {"date":"2026-11-23","title":"捨て猫の段ボール（鳴いて気づいてもらおう）","file":"games/sutego-nyaa.html","score":{"order":"desc","unit":"人","min":0,"max":100,"decimals":0,"label":"見つかる前に保護してもらえた人数"}},
-  {"date":"2026-11-24","title":"鴨の親子横断（コガモは一羽ずつ）","file":"games/kamo-oyako-koudan.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"渡れた羽数×50－手数"}}
+  {"date":"2026-11-24","title":"鴨の親子横断（コガモは一羽ずつ）","file":"games/kamo-oyako-koudan.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"渡れた羽数×50－手数"}},
+  {"date":"2026-11-25","title":"さるかに合戦 サルの柿投げ（臼・ハチ・カニを迎撃）","file":"games/saru-kaki-nage.html","score":{"order":"desc","unit":"点","min":0,"max":5000,"decimals":0,"label":"撃退したスコア"}}
 ]
