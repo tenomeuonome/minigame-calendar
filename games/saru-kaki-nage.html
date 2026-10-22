@@ -7,7 +7,9 @@
 <style>
   body { margin:0; background:#1a3a4a; color:#eef8f0; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
   h1 { font-size:20px; margin:8px 0; }
-  #hud { display:flex; justify-content:space-between; width:600px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #hud { display:flex; justify-content:space-between; width:600px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; align-items:center; }
+  #fullWrap { width:120px; height:12px; background:#2a4a2a; border-radius:6px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:6px; }
+  #fullBar { height:100%; width:100%; background:#f0c020; }
   #wrap { position:relative; }
   canvas { background:#9adcf0; border:3px solid #2a5a3a; border-radius:10px; display:block; touch-action:none; }
   #ctl { display:grid; grid-template-columns:repeat(3,70px); grid-template-rows:repeat(2,50px); gap:8px; margin-top:12px; justify-content:center; }
@@ -15,7 +17,8 @@
   #ctl button:active { background:#7aaa5a; }
   #btnLeft { grid-column:1; grid-row:1/3; }
   #btnRight { grid-column:3; grid-row:1/3; }
-  #btnThrow { grid-column:2; grid-row:1/3; background:#d87a2a; font-size:15px; }
+  #btnThrow { grid-column:2; grid-row:1; background:#d87a2a; font-size:14px; }
+  #btnEat { grid-column:2; grid-row:2; background:#3a8a5a; font-size:14px; }
   #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.8); border-radius:10px; text-align:center; }
   #msg h2 { font-size:24px; margin-bottom:6px; }
   #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
@@ -27,7 +30,7 @@
   <h1>🐵 さるかに合戦 サルの柿投げ</h1>
   <div id="hud">
     <div>スコア: <span id="score">0</span></div>
-    <div>木の上のサル、復讐の列に柿を投げ返せ</div>
+    <div>満腹: <span id="fullWrap"><span id="fullBar"></span></span></div>
   </div>
   <div id="wrap">
     <canvas id="game" width="600" height="440"></canvas>
@@ -41,28 +44,38 @@
     <button id="btnLeft">◀</button>
     <button id="btnThrow">🥭 投げる</button>
     <button id="btnRight">▶</button>
+    <button id="btnEat">🍽️ 食べる</button>
   </div>
   <div id="help">
     左右(矢印キー←→)でサルを枝の間で動かし、スペースキーか「投げる」で真下に青い柿を落とす。
-    カニ🦀・ハチ🐝は1発、臼⚱️は硬くて3発で撃退。どれか1体でもサルの高さまで登ってきたらゲームオーバー。
+    カニ🦀・ハチ🐝は1発、臼⚱️は硬くて3発で撃退。どれか1体でもサルの高さまで登ってきたらゲームオーバー。<br>
+    木になってる柿は時間とともに青🟢→熟🟠へ実っていく。下矢印キーか「食べる」で今の実を食べられるが、
+    <b>熟す前に食べるとお腹を壊して満腹ゲージが減る</b>。満腹ゲージが尽きてもゲームオーバー。
   </div>
 
 <script>
 const W = 600, H = 440, LANES = 5, LANE_W = W / LANES;
 const MONKEY_Y = 60, GROUND_Y = 400, TOP_LIMIT = 95;
+const RIPEN_PER_FRAME = 100 / (7 * 30);   // 青い柿が熟すまで約7秒
+const HUNGER_DRAIN = 100 / (90 * 30);     // 満腹ゲージは何もしないと約90秒でゼロ
 let state = {};
 
 function resetGame() {
   document.getElementById('msg').style.display = 'none';
   state = {
-    lane: 2, score: 0, running: true, throwCooldown: 0,
+    lane: 2, score: 0, running: true, throwCooldown: 0, eatCooldown: 0,
+    fullness: 100, ripeness: 0,
     enemies: [], persimmons: [], spawnTimer: 60, flash: null, flashTimer: 0,
   };
   updateHud();
   render();
 }
 
-function updateHud() { document.getElementById('score').textContent = state.score; }
+function updateHud() {
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('fullBar').style.width = Math.max(0, state.fullness) + '%';
+  document.getElementById('fullBar').style.background = state.fullness < 30 ? '#e04a3a' : '#f0c020';
+}
 
 function laneX(lane) { return lane * LANE_W + LANE_W / 2; }
 
@@ -74,16 +87,33 @@ function throwPersimmon() {
   if (!state.running || state.throwCooldown > 0) return;
   state.throwCooldown = 14;
   state.persimmons.push({ lane: state.lane, y: MONKEY_Y + 20 });
+  state.ripeness = 0;
+}
+
+function eatPersimmon() {
+  if (!state.running || state.eatCooldown > 0) return;
+  state.eatCooldown = 14;
+  if (state.ripeness >= 100) {
+    state.fullness = Math.min(100, state.fullness + 30);
+    state.flash = '🟠 おいしい！+30'; state.flashTimer = 24;
+  } else {
+    state.fullness = Math.max(0, state.fullness - 20);
+    state.flash = '🤢 まだ青い…-20'; state.flashTimer = 24;
+  }
+  state.ripeness = 0;
+  updateHud();
 }
 
 document.getElementById('btnLeft').onclick = () => moveLane(-1);
 document.getElementById('btnRight').onclick = () => moveLane(1);
 document.getElementById('btnThrow').onclick = throwPersimmon;
+document.getElementById('btnEat').onclick = eatPersimmon;
 document.addEventListener('keydown', e => {
-  if (['ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if (['ArrowLeft','ArrowRight','ArrowDown',' '].includes(e.key)) e.preventDefault();
   if (e.key === 'ArrowLeft') moveLane(-1);
   if (e.key === 'ArrowRight') moveLane(1);
   if (e.key === ' ') throwPersimmon();
+  if (e.key === 'ArrowDown') eatPersimmon();
 });
 
 const ENEMY_TYPES = {
@@ -109,7 +139,13 @@ function spawnEnemy() {
 function update() {
   if (!state.running) return;
   if (state.throwCooldown > 0) state.throwCooldown--;
+  if (state.eatCooldown > 0) state.eatCooldown--;
   if (state.flashTimer > 0) state.flashTimer--; else state.flash = null;
+
+  state.ripeness = Math.min(100, state.ripeness + RIPEN_PER_FRAME);
+  state.fullness = Math.max(0, state.fullness - HUNGER_DRAIN);
+  updateHud();
+  if (state.fullness <= 0) return endGame('hunger');
 
   state.spawnTimer--;
   if (state.spawnTimer <= 0) {
@@ -141,15 +177,16 @@ function update() {
     }
   }
 
-  if (state.enemies.some(en => en.y <= TOP_LIMIT)) return endGame();
+  if (state.enemies.some(en => en.y <= TOP_LIMIT)) return endGame('caught');
   state.enemies = state.enemies.filter(en => en.y > 0);
 
   render();
 }
 
-function endGame() {
+function endGame(reason) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '🙈 サル、やられた！';
+  document.getElementById('msgTitle').textContent =
+    reason === 'hunger' ? '🍌 お腹が空きすぎて動けなくなった…' : '🙈 サル、やられた！';
   document.getElementById('msgText').textContent = `スコア: ${state.score}`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -170,8 +207,11 @@ function render() {
 
   ctx.font = '34px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('🙈', laneX(state.lane), MONKEY_Y + 10);
-  ctx.font = '16px sans-serif';
-  ctx.fillText('🌳🍈🍈', laneX(state.lane), MONKEY_Y - 16);
+  ctx.font = '20px sans-serif';
+  ctx.fillText(state.ripeness >= 100 ? '🌳🟠' : '🌳🟢', laneX(state.lane), MONKEY_Y - 16);
+  ctx.fillStyle = '#222'; ctx.fillRect(laneX(state.lane) - 18, MONKEY_Y - 30, 36, 4);
+  ctx.fillStyle = state.ripeness >= 100 ? '#e08a2a' : '#5a9a3a';
+  ctx.fillRect(laneX(state.lane) - 18, MONKEY_Y - 30, 36 * (state.ripeness / 100), 4);
 
   ctx.font = '26px sans-serif';
   state.persimmons.forEach(p => ctx.fillText('🟢', laneX(p.lane), p.y));
