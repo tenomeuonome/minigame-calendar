@@ -39,5 +39,9 @@
   {"date":"2026-11-22","title":"弁当箱パズル（おかず詰め込み）","file":"games/bento-tsumekomi.html","score":{"order":"desc","unit":"マス","min":0,"max":300,"decimals":0,"label":"詰めたマス数"}},
   {"date":"2026-11-23","title":"捨て猫の段ボール（鳴いて気づいてもらおう）","file":"games/sutego-nyaa.html","score":{"order":"desc","unit":"人","min":0,"max":100,"decimals":0,"label":"見つかる前に保護してもらえた人数"}},
   {"date":"2026-11-24","title":"鴨の親子横断（コガモは一羽ずつ）","file":"games/kamo-oyako-koudan.html","score":{"order":"desc","unit":"点","min":0,"max":300,"decimals":0,"label":"渡れた羽数×50－手数"}},
-  {"date":"2026-11-25","title":"さるかに合戦 サルの柿投げ（臼・ハチ・カニを迎撃）","file":"games/saru-kaki-nage.html","score":{"order":"desc","unit":"点","min":0,"max":5000,"decimals":0,"label":"撃退したスコア"}}
+  {"date":"2026-11-25","title":"さるかに合戦 サルの柿投げ（臼・ハチ・カニを迎撃）","file":"games/saru-kaki-nage.html","score":{"order":"desc","unit":"点","min":0,"max":5000,"decimals":0,"label":"撃退したスコア"}},
+  {"date":"2026-11-26","title":"素潜りチャレンジ（限界まで潜って生きて帰る）","file":"games/sumomoguri-chousen.html","score":{"order":"desc","unit":"m","min":0,"max":300,"decimals":0,"label":"生還できたときの最大深度"}},
+  {"date":"2026-11-27","title":"自転車で新聞配達（ポストへ直接投げ込め）","file":"games/jitensha-shinbun-haitatsu.html","score":{"order":"desc","unit":"点","min":0,"max":20000,"decimals":0,"label":"命中数と連続ボーナスの合計"}},
+  {"date":"2026-11-28","title":"海に逃げたたい焼き君（釣り針の餌を食いちぎれ）","file":"games/umi-no-taiyaki.html","score":{"order":"desc","unit":"点","min":0,"max":5000,"decimals":0,"label":"食事＋餌の撃退スコア"}},
+  {"date":"2026-11-29","title":"休日のパパ（掃除機とこどもから逃げ回る）","file":"games/kyuujitsu-no-papa.html","score":{"order":"desc","unit":"秒","min":0,"max":600,"decimals":0,"label":"3回つかまるまでのんびりできた時間"}}
 ]
