@@ -200,9 +200,9 @@ function update() {
   }
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '🀄 積みあがった！';
+  document.getElementById('msgTitle').textContent = title || '🀄 積みあがった！';
   document.getElementById('msgText').textContent = `スコア: ${state.score}点`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -243,6 +243,7 @@ function render() {
 
 setInterval(update, 1000/30);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

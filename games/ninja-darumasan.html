@@ -183,10 +183,10 @@ function clearRound(){
   else{phase='clear';endTimer=1.9;}
   hold=false;
 }
-function showResult(){
+function showResult(reason){
   phase='result';
   const won=round>=MAXR&&R.D>=100;
-  $('rT').textContent=won?'免許皆伝!':'みつかった…';
+  $('rT').textContent=reason||(won?'免許皆伝!':'みつかった…');
   $('rD').textContent=(won?'全'+MAXR+'ラウンド制覇':'ラウンド'+round+'で終了')+'（クリア '+(won?MAXR:round-1)+' 回）';
   $('rS').textContent=score;
   $('ovR').classList.remove('hide');
@@ -334,6 +334,7 @@ function loop(t){
   update(dt);draw();hud();requestAnimationFrame(loop);
 }
 resize();requestAnimationFrame(loop);
+window.gcGiveUp=()=>{if(phase==='play'){hold=false;showResult('🏳️ ここで終了');}};
 })();
 </script>
 </body>

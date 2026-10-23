@@ -156,9 +156,9 @@ function update() {
   render();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '🎣 釣られてしまった…';
+  document.getElementById('msgTitle').textContent = title || '🎣 釣られてしまった…';
   document.getElementById('msgText').textContent = `スコア: ${state.score}`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -195,6 +195,7 @@ function render() {
 
 setInterval(update, 1000 / 30);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

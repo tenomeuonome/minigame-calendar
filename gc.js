@@ -93,8 +93,13 @@
     .star.on{background:rgba(255,196,0,.9);color:#2a2100}
   </style>
   <a class="b" href="/" target="_top">🏠 トップへ</a>
-  ${GAME ? '<button type="button" class="b star" id="favBtn"></button><button type="button" class="b" id="cmtBtn">💬 掲示板</button>' : ''}`;
+  ${GAME ? '<button type="button" class="b star" id="favBtn"></button><button type="button" class="b" id="cmtBtn">💬 掲示板</button>' : ''}
+  ${GAME && typeof window.gcGiveUp === 'function' ? '<button type="button" class="b" id="giveupBtn">🏳️ ここで終了</button>' : ''}`;
   (document.body || document.documentElement).appendChild(homeHost);
+
+  if (GAME && typeof window.gcGiveUp === 'function') {
+    homeRoot.querySelector('#giveupBtn').onclick = () => { try { window.gcGiveUp(); } catch (e) {} };
+  }
 
   if (GAME) {
     homeRoot.querySelector('#cmtBtn').onclick = () => showComments(false);

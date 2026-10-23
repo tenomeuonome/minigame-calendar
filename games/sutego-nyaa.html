@@ -154,6 +154,7 @@ function render() {
 
 setInterval(update, 1000 / 30);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

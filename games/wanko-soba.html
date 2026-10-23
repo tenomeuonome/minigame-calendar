@@ -138,12 +138,13 @@ function update() {
   if (state.timeLeft <= 0) endGame();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
   if (!state.submitted) { state.submitted = true; const s = state.score; setTimeout(() => window.GC && GC.submitScore(s), 1200); }
-  document.getElementById('msgTitle').textContent = '🍚 ごちそうさまでした';
-  document.getElementById('msgText').textContent =
-    `食べた杯数: ${state.bowls}杯\nスコア: ${state.score}点\n最大コンボは記録されてないけど、なかなかの腕前！`;
+  document.getElementById('msgTitle').textContent = title || '🍚 ごちそうさまでした';
+  document.getElementById('msgText').textContent = title
+    ? `食べた杯数: ${state.bowls}杯\nスコア: ${state.score}点`
+    : `食べた杯数: ${state.bowls}杯\nスコア: ${state.score}点\n最大コンボは記録されてないけど、なかなかの腕前！`;
   document.getElementById('msg').style.display = 'flex';
 }
 
@@ -189,6 +190,7 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

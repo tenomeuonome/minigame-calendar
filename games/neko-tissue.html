@@ -88,9 +88,9 @@ function update() {
   render();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '😾 見つかった！';
+  document.getElementById('msgTitle').textContent = title || '😾 見つかった！';
   document.getElementById('msgText').textContent = `散らかしたティッシュ: ${state.score}枚`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -132,6 +132,7 @@ function render() {
 
 setInterval(update, 1000/30);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

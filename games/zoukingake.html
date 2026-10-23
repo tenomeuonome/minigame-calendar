@@ -82,12 +82,12 @@ function update() {
   render();
 }
 
-function endGame(finished) {
+function endGame(finished, title) {
   state.running = false;
   state.finished = true;
   const rank = 1 + state.rivals.filter(r => r.dist > state.playerDist).length;
   const score = finished ? Math.round(2000 - (15 - state.timeLeft) * 60) : Math.round(state.playerDist);
-  document.getElementById('msgTitle').textContent = finished ? (rank === 1 ? '🏆 1位でゴール！' : `${rank}位でゴール`) : '⏱ 時間切れ';
+  document.getElementById('msgTitle').textContent = title || (finished ? (rank === 1 ? '🏆 1位でゴール！' : `${rank}位でゴール`) : '⏱ 時間切れ');
   document.getElementById('msgText').textContent = finished
     ? `タイム: ${(15 - state.timeLeft).toFixed(1)}秒\nスコア: ${score}`
     : `進んだ距離: ${Math.round(state.playerDist)}m / ${COURSE_LEN}m\nスコア: ${score}`;
@@ -129,6 +129,7 @@ function render() {
 function loop() { update(); requestAnimationFrame(loop); }
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame(false, '🏳️ ここで終了'); };
 </script>
 </body>
 </html>

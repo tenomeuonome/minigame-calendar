@@ -194,10 +194,13 @@ function render() {
   document.getElementById('fullLabel').textContent = `満腹度 ${Math.round(pct)}%`;
 }
 
-function endGame(timeUp, lastFood) {
+function endGame(timeUp, lastFood, title) {
   state.running = false;
   if (!state.submitted) { state.submitted = true; const s = state.score; setTimeout(() => window.GC && GC.submitScore(s), 1200); }
-  if (timeUp) {
+  if (title) {
+    document.getElementById('msgTitle').textContent = title;
+    document.getElementById('msgText').textContent = `スコア: ${state.score}点`;
+  } else if (timeUp) {
     document.getElementById('msgTitle').textContent = '🏆 タイムアップ';
     document.getElementById('msgText').textContent = `スコア: ${state.score}点\nまだ食べられそう！`;
   } else {
@@ -211,6 +214,7 @@ function loop() { update(); requestAnimationFrame(loop); }
 
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame(false, null, '🏳️ ここで終了'); };
 </script>
 </body>
 </html>

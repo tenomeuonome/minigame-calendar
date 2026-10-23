@@ -197,9 +197,9 @@ function update() {
   if (state.timeLeft <= 0) endGame();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '💘 おつかれさま';
+  document.getElementById('msgTitle').textContent = title || '💘 おつかれさま';
   document.getElementById('msgText').textContent = `スコア: ${state.score}点`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -209,6 +209,7 @@ window.addEventListener('resize', layoutZones);
 function loop() { update(); requestAnimationFrame(loop); }
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

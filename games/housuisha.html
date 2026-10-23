@@ -185,6 +185,7 @@ window.addEventListener('keyup',e=>{keys[e.key]=false;if(e.key===' ')keyDown=fal
 window.addEventListener('blur',()=>{down=false;keyDown=false;for(const k in keys)keys[k]=false;});
 document.getElementById('startBtn').addEventListener('click',start);
 document.getElementById('retryBtn').addEventListener('click',start);
+window.gcGiveUp=()=>{if(state==='play')end('🏳️ ここで終了');};
 })();
 </script>
 </body>

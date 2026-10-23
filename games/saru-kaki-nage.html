@@ -186,7 +186,7 @@ function update() {
 function endGame(reason) {
   state.running = false;
   document.getElementById('msgTitle').textContent =
-    reason === 'hunger' ? '🍌 お腹が空きすぎて動けなくなった…' : '🙈 サル、やられた！';
+    reason === 'hunger' ? '🍌 お腹が空きすぎて動けなくなった…' : reason === 'giveup' ? '🏳️ ここで終了' : '🙈 サル、やられた！';
   document.getElementById('msgText').textContent = `スコア: ${state.score}`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -239,6 +239,7 @@ function render() {
 
 setInterval(update, 1000 / 30);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('giveup'); };
 </script>
 </body>
 </html>

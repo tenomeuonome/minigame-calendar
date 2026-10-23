@@ -98,10 +98,10 @@ function update() {
   render();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
   const score = (state.round - 1) * 10 + state.itemCount;
-  document.getElementById('msgTitle').textContent = '💥 食器が落ちた！';
+  document.getElementById('msgTitle').textContent = title || '💥 食器が落ちた！';
   document.getElementById('msgText').textContent = `成功ラウンド: ${state.round - 1}回\n最後のテーブル: ${state.itemCount}個\nスコア: ${score}`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(score), 1200);
@@ -141,6 +141,7 @@ function render() {
 function loop() { update(); requestAnimationFrame(loop); }
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

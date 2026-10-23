@@ -213,9 +213,9 @@ canvas.addEventListener('pointermove', e => { state.hover = cellFromEvent(e); re
 canvas.addEventListener('pointerleave', () => { state.hover = null; render(); });
 canvas.addEventListener('click', e => { tryPlace(cellFromEvent(e)); });
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '🍱 もう詰められない！';
+  document.getElementById('msgTitle').textContent = title || '🍱 もう詰められない！';
   document.getElementById('msgText').textContent = `詰めたマス: ${state.score}\nレベル: ${state.level}`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -255,6 +255,7 @@ function render() {
 }
 
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

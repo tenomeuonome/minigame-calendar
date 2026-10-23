@@ -152,9 +152,9 @@ function update() {
   if (state.timeLeft <= 0) endGame();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '✨ おつかれさま';
+  document.getElementById('msgTitle').textContent = title || '✨ おつかれさま';
   document.getElementById('msgText').textContent = `${state.score}個キャッチ！(取り逃し ${state.miss}個)`;
   document.getElementById('msg').style.display = 'flex';
   const finalScore = state.score;
@@ -213,6 +213,7 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

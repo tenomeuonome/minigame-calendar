@@ -131,9 +131,9 @@ function update() {
   if (state.timeLeft <= 0) endGame(true);
 }
 
-function endGame(timeUp) {
+function endGame(timeUp, title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = timeUp ? '🌹 まだ眠り姫のまま' : '😵 評判が落ちた…';
+  document.getElementById('msgTitle').textContent = title || (timeUp ? '🌹 まだ眠り姫のまま' : '😵 評判が落ちた…');
   document.getElementById('msgText').textContent = `スコア: ${state.score}点 (ミス${state.miss}回)`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
@@ -141,6 +141,7 @@ function endGame(timeUp) {
 
 setInterval(update, 1000/60);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame(true, '🏳️ ここで終了'); };
 </script>
 </body>
 </html>

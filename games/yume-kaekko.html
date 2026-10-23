@@ -32,8 +32,8 @@ body{background:var(--frame);color:var(--text);font-family:var(--f-body);font-we
 .dream{flex:1;min-height:0;position:relative;border-radius:18px;overflow:hidden;touch-action:none;transition:filter .2s}
 .dream.shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
-.thing{position:absolute;left:0;top:0;width:58px;height:58px;margin:-29px 0 0 -29px;display:grid;place-items:center;font-size:40px;line-height:1;will-change:transform;pointer-events:none}
-.thing .sh{position:absolute;right:-2px;bottom:-2px;width:20px;height:20px;border-radius:50%;background:#fff;color:#1b1430;font-size:12px;display:grid;place-items:center;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.thing{position:absolute;left:0;top:0;width:78px;height:78px;margin:-39px 0 0 -39px;display:grid;place-items:center;font-size:54px;line-height:1;will-change:transform;pointer-events:none}
+.thing .sh{position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:#fff;color:#1b1430;font-size:14px;display:grid;place-items:center;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .thing.scary{filter:drop-shadow(0 0 8px rgba(167,123,255,.8))}
 .thing.scary .sh{background:#2b1f4d;color:#fff;border:1.5px solid var(--bad)}
 .thing.scary.target{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 4px var(--sun))}
@@ -56,9 +56,9 @@ body{background:var(--frame);color:var(--text);font-family:var(--f-body);font-we
 .palette{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .item{appearance:none;border:2px solid var(--line);background:var(--panel);border-radius:16px;padding:6px 2px 4px;color:var(--text);cursor:grab;touch-action:none;
   display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--f-body);position:relative;min-width:0}
-.item .em{font-size:34px;line-height:1.1}
-.item .nm{font-size:10px;color:var(--dim);white-space:nowrap}
-.item .sh{position:absolute;top:4px;right:6px;font-size:12px;font-weight:700;color:var(--sun)}
+.item .em{font-size:46px;line-height:1.1}
+.item .nm{font-size:11px;color:var(--dim);white-space:nowrap}
+.item .sh{position:absolute;top:4px;right:6px;font-size:14px;font-weight:700;color:var(--sun)}
 .item.sel{border-color:var(--sun);box-shadow:0 0 0 2px var(--sun) inset}
 .item.no{animation:shake .3s}
 .item:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
@@ -178,8 +178,8 @@ function spawnScary() {
   const pool = SCARY.slice(0, Math.min(SCARY.length, 5 + N * 2));
   const def = pick(pool);
   const side = Math.random();
-  const x = side < 0.33 ? -20 : side < 0.66 ? w + 20 : rand(30, w - 30);
-  const y = side < 0.66 ? rand(20, h * 0.55) : -20;
+  const x = side < 0.33 ? 8 : side < 0.66 ? w - 8 : rand(30, w - 30);
+  const y = side < 0.66 ? rand(30, h * 0.55) : 8;
   const s = {def, x, y, ph:Math.random() * 6, sp:rand(18, 26) + N * 4, el:makeEl(def, 'scary')};
   G.scary.push(s);
 }
@@ -234,7 +234,7 @@ function renderPalette() {
 // ── ドラッグ ──
 function scaryAt(cx, cy) {
   const r = dream.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
-  let best = null, bd = 46;
+  let best = null, bd = 54;
   for (const s of G.scary) { const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = s; } }
   return best;
 }

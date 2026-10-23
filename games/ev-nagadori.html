@@ -129,9 +129,9 @@ function update() {
   render();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = '🔌 電欠…';
+  document.getElementById('msgTitle').textContent = title || '🔌 電欠…';
   document.getElementById('msgText').textContent = `走行距離: ${Math.floor(state.distance)}m`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(Math.floor(state.distance)), 1200);
@@ -172,6 +172,7 @@ function render() {
 
 setInterval(update, 1000 / 30);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

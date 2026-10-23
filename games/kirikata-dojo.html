@@ -415,6 +415,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (state === 'play') endGame(); };
 })();
 </script>
 

@@ -189,7 +189,7 @@ function update() {
 
 function endGame(timeUp) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = timeUp ? '🎉 お疲れさま！' : '😣 クレーム過多…';
+  document.getElementById('msgTitle').textContent = timeUp === 'giveup' ? '🏳️ ここで終了' : timeUp ? '🎉 お疲れさま！' : '😣 クレーム過多…';
   document.getElementById('msgText').textContent =
     `スコア: ${state.score}点 / クレーム: ${state.complaints}件` + (timeUp ? '' : '\nゲームオーバー');
   document.getElementById('msg').style.display = 'flex';
@@ -222,6 +222,7 @@ function render() {
 
 setInterval(update, 1000 / 60);
 resetGame();
+window.gcGiveUp = () => { if (state.running) endGame('giveup'); };
 </script>
 </body>
 </html>

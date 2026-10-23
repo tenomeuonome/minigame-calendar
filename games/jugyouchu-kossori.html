@@ -182,7 +182,7 @@ function update() {
 function endGame(timeUp) {
   state.running = false;
   if (!state.submitted) { state.submitted = true; const s = state.score; setTimeout(() => window.GC && GC.submitScore(s), 1200); }
-  document.getElementById('msgTitle').textContent = timeUp ? '🔔 チャイムが鳴った' : '😱 見つかった…';
+  document.getElementById('msgTitle').textContent = timeUp === 'giveup' ? '🏳️ ここで終了' : timeUp ? '🔔 チャイムが鳴った' : '😱 見つかった…';
   document.getElementById('msgText').textContent =
     `スコア: ${state.score}点 (警告${state.strikes}回)` + (timeUp ? '' : '\n「あとで職員室に来なさい」');
   document.getElementById('msg').style.display = 'flex';
@@ -236,6 +236,7 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('giveup'); };
 </script>
 </body>
 </html>

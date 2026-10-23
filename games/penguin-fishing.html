@@ -201,7 +201,7 @@ function update() {
 function endGame(timeUp) {
   state.running = false;
   if (!state.submitted) { state.submitted = true; const s = state.score; setTimeout(() => window.GC && GC.submitScore(s), 1200); }
-  document.getElementById('msgTitle').textContent = timeUp ? '🧊 猟は終わり' : '😱 襲われた…';
+  document.getElementById('msgTitle').textContent = timeUp === 'giveup' ? '🏳️ ここで終了' : timeUp ? '🧊 猟は終わり' : '😱 襲われた…';
   document.getElementById('msgText').textContent = `${state.score}匹の魚を捕った！`;
   document.getElementById('msg').style.display = 'flex';
 }
@@ -264,6 +264,7 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('giveup'); };
 </script>
 </body>
 </html>

@@ -121,10 +121,10 @@ function update() {
   if (state.power <= 0) return endGame();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
   const score = Math.round(state.elapsed * 10 + state.maxPower);
-  document.getElementById('msgTitle').textContent = '🌫️ 熱帯低気圧になって消滅';
+  document.getElementById('msgTitle').textContent = title || '🌫️ 熱帯低気圧になって消滅';
   document.getElementById('msgText').textContent = `生存時間: ${state.elapsed.toFixed(1)}秒\n最大勢力: ${Math.round(state.maxPower)}\nスコア: ${score}`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(score), 1200);
@@ -167,6 +167,7 @@ function draw() {
 function loop() { update(); draw(); requestAnimationFrame(loop); }
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>

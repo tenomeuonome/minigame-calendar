@@ -209,6 +209,7 @@ document.addEventListener('dblclick',e=>e.preventDefault());
 let lt=performance.now();
 function loop(n){const dt=Math.min(.05,(n-lt)/1000)||0;lt=n;update(dt);draw();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (st==='play') { cause='🏳️ ここで終了'; showResult(); } };
 </script>
 </body>
 </html>

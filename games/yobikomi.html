@@ -200,7 +200,7 @@ function update() {
 
 function endGame(win, text) {
   state.running = false;
-  document.getElementById('msgTitle').textContent = win ? '🎉 営業終了' : '😵 トラブル発生';
+  document.getElementById('msgTitle').textContent = win === 'giveup' ? '🏳️ ここで終了' : win ? '🎉 営業終了' : '😵 トラブル発生';
   document.getElementById('msgText').textContent = text;
   document.getElementById('msg').style.display = 'flex';
   const finalScore = state.score;
@@ -226,6 +226,7 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('giveup', `ここまで${state.score}人を案内した`); };
 </script>
 </body>
 </html>

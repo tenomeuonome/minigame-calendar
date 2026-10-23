@@ -75,10 +75,10 @@ function update() {
   render();
 }
 
-function endGame() {
+function endGame(title) {
   state.running = false;
   const score = Math.round(state.dist);
-  document.getElementById('msgTitle').textContent = '💦 落ちた！';
+  document.getElementById('msgTitle').textContent = title || '💦 落ちた！';
   document.getElementById('msgText').textContent = `進んだ距離: ${score}m`;
   document.getElementById('msg').style.display = 'flex';
   setTimeout(() => window.GC && GC.submitScore(score), 1200);
@@ -119,6 +119,7 @@ function render() {
 function loop() { update(); requestAnimationFrame(loop); }
 resetGame();
 loop();
+window.gcGiveUp = () => { if (state.running) endGame('🏳️ ここで終了'); };
 </script>
 </body>
 </html>
