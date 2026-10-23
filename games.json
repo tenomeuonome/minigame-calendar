@@ -43,5 +43,6 @@
   {"date":"2026-11-26","title":"素潜りチャレンジ（限界まで潜って生きて帰る）","file":"games/sumomoguri-chousen.html","score":{"order":"desc","unit":"m","min":0,"max":300,"decimals":0,"label":"生還できたときの最大深度"}},
   {"date":"2026-11-27","title":"自転車で新聞配達（ポストへ直接投げ込め）","file":"games/jitensha-shinbun-haitatsu.html","score":{"order":"desc","unit":"点","min":0,"max":20000,"decimals":0,"label":"命中数と連続ボーナスの合計"}},
   {"date":"2026-11-28","title":"海に逃げたたい焼き君（釣り針の餌を食いちぎれ）","file":"games/umi-no-taiyaki.html","score":{"order":"desc","unit":"点","min":0,"max":5000,"decimals":0,"label":"食事＋餌の撃退スコア"}},
-  {"date":"2026-11-29","title":"休日のパパ（掃除機とこどもから逃げ回る）","file":"games/kyuujitsu-no-papa.html","score":{"order":"desc","unit":"秒","min":0,"max":600,"decimals":0,"label":"3回つかまるまでのんびりできた時間"}}
+  {"date":"2026-11-29","title":"休日のパパ（掃除機とこどもから逃げ回る）","file":"games/kyuujitsu-no-papa.html","score":{"order":"desc","unit":"秒","min":0,"max":600,"decimals":0,"label":"3回つかまるまでのんびりできた時間"}},
+  {"date":"2026-11-30","title":"電気自動車でどこまでも（バッテリー残量との勝負）","file":"games/ev-nagadori.html","score":{"order":"desc","unit":"m","min":0,"max":3000,"decimals":0,"label":"電欠するまでに走った距離"}}
 ]
