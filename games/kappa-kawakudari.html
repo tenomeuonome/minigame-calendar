@@ -454,7 +454,7 @@ function hud() {
   $('cuc').textContent = G.cuc;
   $('diveBtn').classList.toggle('cool', K.dive > 0 || K.cool > 0);
 }
-function gameOver() {
+function gameOver(title) {
   state = 'over';
   const m = Math.floor(G.camY / 10), score = m + G.cuc * 20;
   if (score > best) { best = score; try { localStorage.setItem('kappa-best', String(best)); } catch(e) {} }
@@ -463,7 +463,7 @@ function gameOver() {
   $('rCuc').textContent = G.cuc + '本';
   $('rScore').textContent = score;
   $('rBest').textContent = best;
-  $('overTitle').textContent = '皿がかわいた…';
+  $('overTitle').textContent = title || '皿がかわいた…';
   $('overOv').hidden = false;
   setTimeout(() => window.GC && GC.submitScore(score), 1200);
 }
@@ -507,6 +507,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (state === 'play') gameOver('🏳️ ここで終了'); };
 })();
 </script>
 

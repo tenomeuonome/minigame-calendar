@@ -314,17 +314,18 @@ function next() {
     janken();
   }, 1500);
 }
-function over(won) {
+function over(won, giveup) {
   clearAll(); lock();
+  S.running = false;
   if (S.fast !== null && (best === null || S.fast < best)) { best = S.fast; try { localStorage.setItem('busou-best', String(Math.round(best))); } catch(e) {} }
-  $('overTitle').textContent = won ? '勝利！' : '敗北…';
+  $('overTitle').textContent = giveup ? '🏳️ ここで終了' : won ? '勝利！' : '敗北…';
   $('rList').innerHTML = `<dt>防御成功</dt><dd>${S.guards} / ${S.defends}</dd><dt>今回の最速反応</dt><dd>${S.fast === null ? '—' : sec(S.fast)}</dd><dt>自己ベスト</dt><dd>${best === null ? '—' : sec(best)}</dd>`;
   $('overOv').hidden = false;
   if (!S.sent && S.fast !== null) { S.sent = true; const v = Math.round(S.fast / 10) / 100; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
 }
 function start() {
   clearAll();
-  S = {cpuHp:3, youHp:3, win:DIFF[diff].win, guards:0, defends:0, fast:null};
+  S = {cpuHp:3, youHp:3, win:DIFF[diff].win, guards:0, defends:0, fast:null, running:true};
   hearts(); $('startOv').hidden = true; $('overOv').hidden = true;
   janken();
 }
@@ -440,6 +441,7 @@ $('retryBtn').onclick = () => { $('overOv').hidden = true; $('startOv').hidden =
 // タイトル裏の初期表示
 S = {cpuHp:3, youHp:3, win:900, guards:0, defends:0, fast:null};
 hearts(); choices(HANDS, () => {}, false);
+window.gcGiveUp = () => { if (mode === 'cpu' && S && S.running) over(false, true); };
 })();
 </script>
 

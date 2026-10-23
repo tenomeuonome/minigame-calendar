@@ -341,6 +341,7 @@ $('retryBtn').onclick = () => {
   start();
 };
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (G && G.phase !== 'over') over(false); };
 })();
 </script>
 

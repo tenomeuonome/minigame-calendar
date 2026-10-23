@@ -498,11 +498,11 @@ function hud() {
 }
 $('best').textContent = '最高 ' + best.toFixed(2) + 'mg';
 
-function gameOver() {
+function gameOver(title) {
   state = 'over';
   if (G.total > best) { best = G.total; try { localStorage.setItem('pun-best', String(best)); } catch(e) {} }
   $('best').textContent = '最高 ' + best.toFixed(2) + 'mg';
-  $('overTitle').textContent = G.deadText.replace('！', '') || 'ペチッ';
+  $('overTitle').textContent = title || (G.deadText ? G.deadText.replace('！', '') : 'ペチッ') || 'ペチッ';
   $('rScore').textContent = G.total.toFixed(2) + 'mg';
   $('rBeds').textContent = sleepers.filter(s => s.start + 80 < G.scroll + M.x).length + ' 人';
   $('rBest').textContent = best.toFixed(2) + 'mg';
@@ -553,6 +553,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (state === 'play') gameOver('🏳️ ここで終了'); };
 })();
 </script>
 

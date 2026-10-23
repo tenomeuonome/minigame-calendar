@@ -409,7 +409,7 @@ function render(now) {
 }
 
 // ── 進行 ──
-function endGame(reason) {
+function endGame(reason, giveup) {
   if (state !== 'play') return;
   state = 'over';
   const n = S.n, cleared = S.saved >= S.cfg.target;
@@ -433,7 +433,7 @@ function endGame(reason) {
   $('retryBtn').onclick = () => startStage(cleared ? n + 1 : n);
   $('resetBtn').hidden = cleared || n === 1;
   setTimeout(() => { $('overOv').hidden = false; }, 700);
-  if (!cleared && !S.sent) { S.sent = true; const v = run.total; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
+  if ((giveup || !cleared) && !S.sent) { S.sent = true; const v = run.total; setTimeout(() => window.GC && GC.submitScore(v), 1200); }
 }
 function startStage(n) {
   if (n === 1) run.total = 0;
@@ -472,6 +472,7 @@ S.slots[1].disc = 0.5; S.slots[4].disc = 0.3; S.slots[6].disc = 0.2;
 S.aunts.slice(0, 2).forEach((a, k) => { auntEls[k].hidden = false; a.x = k ? 2.2 : 0.8; });
 renderCart();
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (state === 'play') endGame('🏳️ ここで終了', true); };
 })();
 </script>
 

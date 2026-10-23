@@ -322,15 +322,15 @@ function render(now) {
   $('happy').textContent = G.swaps.length;
 }
 
-function endNight(morning) {
+function endNight(morning, giveup) {
   state = 'end';
   G.scary.forEach(s => s.el.remove()); G.scary = [];
   if (morning && N > best) { best = N; try { localStorage.setItem('yumekae-best', String(best)); } catch(e) {} }
   const pairs = {};
   for (const [a, b] of G.swaps) { const k = a.n + '→' + b.n; pairs[k] = (pairs[k] || 0) + 1; }
   const lines = Object.keys(pairs).slice(0, 6).map(k => { const [a, b] = k.split('→'); return `${a}が${b}になった${pairs[k] > 1 ? `（${pairs[k]}回）` : ''}。`; });
-  const mood = !morning ? 'こわくて、とちゅうで目がさめちゃった。' : G.swaps.length >= 14 ? 'すごく楽しい夢だった！' : G.swaps.length >= 8 ? '楽しい夢だった。' : 'ちょっとこわかったけど、朝までねむれた。';
-  $('endTitle').textContent = morning ? 'おはよう！' : 'うわぁっ！';
+  const mood = giveup ? 'ここで、ゆめの中からそっと出てきた。' : !morning ? 'こわくて、とちゅうで目がさめちゃった。' : G.swaps.length >= 14 ? 'すごく楽しい夢だった！' : G.swaps.length >= 8 ? '楽しい夢だった。' : 'ちょっとこわかったけど、朝までねむれた。';
+  $('endTitle').textContent = giveup ? '🏳️ ここで終了' : morning ? 'おはよう！' : 'うわぁっ！';
   $('diary').innerHTML = `<b>ゆめにっき　${N}日目</b>${lines.length ? lines.join('<br>') + '<br>' : 'なにも入れ替わらなかった。<br>'}${mood}`;
   $('endBtn').textContent = morning ? `次の夜へ（${N + 1}日目）` : `${N}日目の夜をもう一度`;
   $('endBtn').onclick = () => { if (morning) N++; startNight(); };
@@ -352,6 +352,7 @@ setTimeout(() => {
   [[HAPPY[0], w * 0.6, h * 0.5], [HAPPY[9], w * 0.3, h * 0.55]].forEach(([d, x, y]) => G.happy.push({def:d, x, y, vx:0, vy:0, ph:0, el:makeEl(d, 'happy')}));
 }, 50);
 requestAnimationFrame(loop);
+window.gcGiveUp = () => { if (state === 'play') endNight(false, true); };
 })();
 </script>
 
