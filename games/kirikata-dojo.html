@@ -102,6 +102,22 @@ canvas{display:block;touch-action:none;border-radius:12px}
 (() => {
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+// 食材とまな板の写真(読み込めなかったときは今までの色ぬりで描く)
+const IMG = {};
+for (const n of ['cucumber_skin', 'cucumber_flesh', 'daikon_skin', 'daikon_flesh', 'carrot_skin', 'carrot_flesh', 'tofu', 'tomato', 'board']) {
+  const im = new Image(); im.src = 'kirikata/' + n + '.jpg'; IMG[n] = im;
+}
+const ready = im => im && im.complete && im.naturalWidth > 0;
+// 枠いっぱいに写真をしきつめる(はみ出た分は切る)。縦長の枠には横長の写真を90度回して使う
+function drawCover(im, x, y, w, h) {
+  const rot = h > w * 1.2 && im.naturalWidth > im.naturalHeight;
+  const bw = rot ? h : w, bh = rot ? w : h;
+  const s = Math.max(bw / im.naturalWidth, bh / im.naturalHeight);
+  const sw = bw / s, sh = bh / s, sx = (im.naturalWidth - sw) / 2, sy = (im.naturalHeight - sh) / 2;
+  if (!rot) { ctx.drawImage(im, sx, sy, sw, sh, x, y, w, h); return; }
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(Math.PI / 2);
+  ctx.drawImage(im, sx, sy, sw, sh, -bw / 2, -bh / 2, bw, bh); ctx.restore();
+}
 const W = 360; let H = 560, scale = 1;
 
 // 切り方（寸法は mm、上から見た図として単純化）
@@ -280,9 +296,12 @@ function hud() {
 function draw(now) {
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   // まな板
-  ctx.fillStyle = '#e2c08f'; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(160,110,60,.18)'; ctx.lineWidth = 1;
-  for (let y = 6; y < H; y += 9) { ctx.beginPath(); ctx.moveTo(0, y); for (let x = 0; x <= W; x += 30) ctx.lineTo(x, y + Math.sin(x / 50 + y) * 2); ctx.stroke(); }
+  if (ready(IMG.board)) drawCover(IMG.board, 0, 0, W, H);
+  else {
+    ctx.fillStyle = '#e2c08f'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(160,110,60,.18)'; ctx.lineWidth = 1;
+    for (let y = 6; y < H; y += 9) { ctx.beginPath(); ctx.moveTo(0, y); for (let x = 0; x <= W; x += 30) ctx.lineTo(x, y + Math.sin(x / 50 + y) * 2); ctx.stroke(); }
+  }
   ctx.strokeStyle = 'rgba(120,80,40,.25)'; ctx.lineWidth = 3; ctx.strokeRect(4, 4, W - 8, H - 8);
   const st = step(), it = ITEM[dish().item], g = geom(st);
   if (st.radial) drawTomato(st, g, it);
@@ -304,9 +323,21 @@ function drawBlock(st, g, it) {
   // 食材
   ctx.fillStyle = 'rgba(80,50,20,.18)'; ctx.beginPath(); ctx.roundRect(ox + 4, oy + 5, w, h, 4); ctx.fill();
   const showFlesh = st.side || (dish().item !== 'tofu' && dish().item !== 'daikon' && h < 14 * k);
-  ctx.fillStyle = it.fill; ctx.beginPath(); ctx.roundRect(ox, oy, w, h, dish().item === 'tofu' ? 2 : Math.min(8, h / 2)); ctx.fill();
-  if (dish().item === 'cucumber') { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let x = ox + 6; x < ox + w; x += 12) for (let y = oy + 5; y < oy + h; y += 9) { ctx.beginPath(); ctx.arc(x + (y % 2) * 4, y, 1.2, 0, Math.PI * 2); ctx.fill(); } }
-  if (dish().item === 'carrot' || dish().item === 'daikon') { ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 1; for (let x = ox + 10; x < ox + w; x += 22) { ctx.beginPath(); ctx.moveTo(x, oy + 2); ctx.lineTo(x + 3, oy + h - 2); ctx.stroke(); } }
+  const item = dish().item, rad = item === 'tofu' ? 2 : Math.min(8, h / 2);
+  const photo = IMG[item === 'tofu' ? 'tofu' : item + (showFlesh ? '_flesh' : '_skin')];
+  if (ready(photo)) {
+    ctx.save(); ctx.beginPath(); ctx.roundRect(ox, oy, w, h, rad); ctx.clip();
+    drawCover(photo, ox, oy, w, h);
+    // 丸みの陰影(上が明るく下が少し暗い)
+    const sh = ctx.createLinearGradient(0, oy, 0, oy + h);
+    sh.addColorStop(0, 'rgba(255,255,255,.18)'); sh.addColorStop(.5, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,0,0,.16)');
+    ctx.fillStyle = sh; ctx.fillRect(ox, oy, w, h);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = it.fill; ctx.beginPath(); ctx.roundRect(ox, oy, w, h, rad); ctx.fill();
+    if (item === 'cucumber') { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let x = ox + 6; x < ox + w; x += 12) for (let y = oy + 5; y < oy + h; y += 9) { ctx.beginPath(); ctx.arc(x + (y % 2) * 4, y, 1.2, 0, Math.PI * 2); ctx.fill(); } }
+    if (item === 'carrot' || item === 'daikon') { ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 1; for (let x = ox + 10; x < ox + w; x += 22) { ctx.beginPath(); ctx.moveTo(x, oy + 2); ctx.lineTo(x + 3, oy + h - 2); ctx.stroke(); } }
+  }
   ctx.strokeStyle = it.edge; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(ox, oy, w, h, dish().item === 'tofu' ? 2 : Math.min(8, h / 2)); ctx.stroke();
   // 採点表示（ピースの色分け）
   if (evalShow) {
@@ -324,10 +355,12 @@ function drawBlock(st, g, it) {
   }
   // 切れ目
   const line = (c, axis, col, wdt) => {
-    ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath();
-    if (axis === 'x') { ctx.moveTo(ox + c.t * k, oy); ctx.lineTo(ox + c.u * k, oy + h); }
-    else { ctx.moveTo(ox, oy + c.t * k); ctx.lineTo(ox + w, oy + c.u * k); }
-    ctx.stroke();
+    const path = d => { ctx.beginPath();
+      if (axis === 'x') { ctx.moveTo(ox + c.t * k + d, oy); ctx.lineTo(ox + c.u * k + d, oy + h); }
+      else { ctx.moveTo(ox, oy + c.t * k + d); ctx.lineTo(ox + w, oy + c.u * k + d); } };
+    // 写真の上でも見えるよう、切れ目の横に光る断面を1本そえる
+    ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1; path(wdt * .9); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = wdt; path(0); ctx.stroke();
   };
   for (const c of keepCuts) line(c, c.axis, 'rgba(60,40,20,.45)', 1.5);
   for (const c of cuts) line(c, st.axis, 'rgba(60,40,20,.85)', 2);
@@ -357,12 +390,19 @@ function drawRuler(st, g) {
 function drawTomato(st, g, it) {
   const r = st.R * g.k;
   ctx.fillStyle = 'rgba(80,30,20,.2)'; ctx.beginPath(); ctx.arc(g.cx + 5, g.cy + 6, r, 0, Math.PI * 2); ctx.fill();
-  const tg = ctx.createRadialGradient(g.cx - r * 0.3, g.cy - r * 0.3, r * 0.1, g.cx, g.cy, r);
-  tg.addColorStop(0, '#f26a52'); tg.addColorStop(1, '#c9321f');
-  ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(g.cx, g.cy, r, 0, Math.PI * 2); ctx.fill();
-  // へた
-  ctx.fillStyle = '#3f7a2a';
-  ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, rr = i % 2 ? 6 : 18; ctx.lineTo(g.cx + Math.cos(a) * rr, g.cy + Math.sin(a) * rr); } ctx.closePath(); ctx.fill();
+  if (ready(IMG.tomato)) {
+    // 写真のトマトは枠いっぱい(直径≒画像の幅)なので、円で切り抜いて置く
+    ctx.save(); ctx.beginPath(); ctx.arc(g.cx, g.cy, r, 0, Math.PI * 2); ctx.clip();
+    const s = r * 2 / 0.97; ctx.drawImage(IMG.tomato, g.cx - s / 2, g.cy - s / 2, s, s);
+    ctx.restore();
+  } else {
+    const tg = ctx.createRadialGradient(g.cx - r * 0.3, g.cy - r * 0.3, r * 0.1, g.cx, g.cy, r);
+    tg.addColorStop(0, '#f26a52'); tg.addColorStop(1, '#c9321f');
+    ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(g.cx, g.cy, r, 0, Math.PI * 2); ctx.fill();
+    // へた
+    ctx.fillStyle = '#3f7a2a';
+    ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, rr = i % 2 ? 6 : 18; ctx.lineTo(g.cx + Math.cos(a) * rr, g.cy + Math.sin(a) * rr); } ctx.closePath(); ctx.fill();
+  }
   const lineCol = evalShow ? (evalShow.sc >= 80 ? '#3f9a5a' : evalShow.sc >= 60 ? '#c98a1e' : '#d4483a') : 'rgba(60,20,10,.85)';
   ctx.strokeStyle = lineCol; ctx.lineWidth = evalShow ? 3 : 2;
   for (const c of cuts) {
