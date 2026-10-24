@@ -47,5 +47,8 @@
   {"date":"2026-11-30","title":"電気自動車でどこまでも（バッテリー残量との勝負）","file":"games/ev-nagadori.html","score":{"order":"desc","unit":"m","min":0,"max":3000,"decimals":0,"label":"電欠するまでに走った距離"}},
   {"date":"2026-12-01","title":"アイロンでシワのばし（焦がさず手際よく）","file":"games/iron-shiwanobashi.html","score":{"order":"desc","unit":"点","min":0,"max":600,"decimals":0,"label":"60秒で仕上げた枚数と焦げの少なさ"}},
   {"date":"2026-12-02","title":"クレープ屋さん（真円に広げて具材を巻いて提供）","file":"games/crepe-yaki.html","score":{"order":"desc","unit":"点","min":0,"max":3000,"decimals":0,"label":"90秒でさばいた注文の合計スコア"}},
-  {"date":"2026-12-03","title":"銀行強盗の人質（物陰から忍び寄って制圧）","file":"games/ginkou-goutou-seiatsu.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"全員制圧のタイムスコア(捕まった場合は制圧人数×200)"}}
+  {"date":"2026-12-03","title":"銀行強盗の人質（物陰から忍び寄って制圧）","file":"games/ginkou-goutou-seiatsu.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"全員制圧のタイムスコア(捕まった場合は制圧人数×200)"}},
+  {"date":"2026-12-04","title":"リフティングチャレンジ（左右移動+タップで何回続く？）","file":"games/lifting-chousen.html","score":{"order":"desc","unit":"回","min":0,"max":500,"decimals":0,"label":"落とすまでのリフティング回数"}},
+  {"date":"2026-12-05","title":"きびだんご百人力（桃太郎×算数、パワーを100に近づけろ）","file":"games/kibidango-100.html","score":{"order":"desc","unit":"点","min":0,"max":5000,"decimals":0,"label":"倒した鬼の合計パワー＋会心ボーナス"}},
+  {"date":"2026-12-06","title":"数字ビリヤード（割り切れる数で当てて1まで縮めろ）","file":"games/suuji-billiard.html","score":{"order":"desc","unit":"点","min":0,"max":2000,"decimals":0,"label":"消した球の数と残り球数ボーナス"}}
 ]
