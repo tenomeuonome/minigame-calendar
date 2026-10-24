@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アイロンでシワのばし</title>
+<style>
+  body { margin:0; background:#2a3a4a; color:#eef5fa; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:600px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wrap { position:relative; }
+  canvas { background:#4a6a8a; border:3px solid #1a2a3a; border-radius:10px; display:block; touch-action:none; cursor:none; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.8); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:600px; font-size:13px; color:#cfe0ec; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>👚 アイロンでシワのばし</h1>
+  <div id="hud">
+    <div>スコア: <span id="score">0</span></div>
+    <div>仕上げた枚数: <span id="pieces">0</span></div>
+    <div>残り時間: <span id="time">60</span>秒</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="600" height="380"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="help">
+    マウス(スマホはドラッグ)でアイロンを動かして、しわの残ってる部分にあてよう。
+    同じ場所にあて続けると<b>焦げる</b>ので、満遍なく手早く動かすのがコツ。
+    全部伸ばせたら次の1枚へ。60秒でできるだけ多く、きれいに仕上げよう。
+  </div>
+
+<script>
+const W = 600, H = 380, COLS = 6, ROWS = 4;
+const OX = 50, OY = 40, CW = (W - OX * 2) / COLS, CH = (H - OY * 2) / ROWS;
+const SMOOTH_RATE = 100 / 18, HEAT_RATE = 100 / 24, TIME_LIMIT = 60 * 30;
+let state = {};
+
+function newPiece() {
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      cells.push({ r, c, wrinkled: Math.random() < 0.7, progress: 0, heat: 0, scorched: false });
+    }
+  }
+  return cells;
+}
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    score: 0, pieces: 0, timeLeft: TIME_LIMIT, running: true,
+    cells: newPiece(), ironX: W / 2, ironY: H / 2, hovering: false,
+  };
+  updateHud();
+  render();
+}
+
+function updateHud() {
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('pieces').textContent = state.pieces;
+  document.getElementById('time').textContent = Math.ceil(state.timeLeft / 30);
+}
+
+const canvas = document.getElementById('game');
+function posFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: (e.clientX - rect.left) * (W / rect.width), y: (e.clientY - rect.top) * (H / rect.height) };
+}
+canvas.addEventListener('pointermove', e => {
+  const p = posFromEvent(e);
+  state.ironX = p.x; state.ironY = p.y; state.hovering = true;
+});
+canvas.addEventListener('pointerleave', () => { state.hovering = false; });
+canvas.addEventListener('pointerdown', e => { const p = posFromEvent(e); state.ironX = p.x; state.ironY = p.y; state.hovering = true; });
+
+function cellAt(x, y) {
+  const c = Math.floor((x - OX) / CW), r = Math.floor((y - OY) / CH);
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
+  return state.cells.find(cell => cell.r === r && cell.c === c);
+}
+
+function update() {
+  if (!state.running) return;
+  state.timeLeft--;
+  if (state.timeLeft <= 0) { state.timeLeft = 0; updateHud(); return endGame(); }
+
+  if (state.hovering) {
+    const cell = cellAt(state.ironX, state.ironY);
+    if (cell && cell.wrinkled && !cell.scorched) {
+      if (cell.progress < 100) {
+        cell.progress = Math.min(100, cell.progress + SMOOTH_RATE);
+      } else {
+        cell.heat = Math.min(100, cell.heat + HEAT_RATE);
+        if (cell.heat >= 100) cell.scorched = true;
+      }
+    }
+  }
+
+  const targets = state.cells.filter(c => c.wrinkled);
+  if (targets.length && targets.every(c => c.progress >= 100)) {
+    const scorchCount = targets.filter(c => c.scorched).length;
+    state.score += Math.max(0, 10 - scorchCount * 3);
+    state.pieces++;
+    state.cells = newPiece();
+    updateHud();
+  }
+
+  updateHud();
+  render();
+}
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '⏰ タイムアップ！';
+  document.getElementById('msgText').textContent = `仕上げた枚数: ${state.pieces}枚\nスコア: ${state.score}`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(state.score), 1200);
+}
+
+function render() {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = '#f5ece0';
+  ctx.fillRect(OX, OY, CW * COLS, CH * ROWS);
+
+  state.cells.forEach(cell => {
+    const x = OX + cell.c * CW, y = OY + cell.r * CH;
+    if (!cell.wrinkled) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 1, y + 1, CW - 2, CH - 2);
+      return;
+    }
+    if (cell.scorched) {
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(x + 1, y + 1, CW - 2, CH - 2);
+      return;
+    }
+    const t = cell.progress / 100;
+    const gray = Math.round(200 + 55 * t);
+    ctx.fillStyle = `rgb(${gray - 30},${gray - 15},${gray})`;
+    ctx.fillRect(x + 1, y + 1, CW - 2, CH - 2);
+    if (t < 1) {
+      ctx.strokeStyle = `rgba(120,100,90,${0.5 * (1 - t)})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + 6, y + 10 + i * (CH - 20) / 2);
+        ctx.quadraticCurveTo(x + CW / 2, y + (i % 2 ? 2 : 18) + i * (CH - 20) / 2, x + CW - 6, y + 10 + i * (CH - 20) / 2);
+        ctx.stroke();
+      }
+    }
+    if (cell.progress >= 100 && cell.heat > 0) {
+      ctx.fillStyle = `rgba(120,40,10,${cell.heat / 140})`;
+      ctx.fillRect(x + 1, y + 1, CW - 2, CH - 2);
+    }
+  });
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(OX, OY + r * CH); ctx.lineTo(OX + COLS * CW, OY + r * CH); ctx.stroke(); }
+  for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(OX + c * CW, OY); ctx.lineTo(OX + c * CW, OY + ROWS * CH); ctx.stroke(); }
+
+  if (state.hovering) {
+    ctx.save();
+    ctx.translate(state.ironX, state.ironY);
+    ctx.fillStyle = '#888';
+    ctx.beginPath();
+    ctx.moveTo(-26, -14); ctx.lineTo(18, -14); ctx.quadraticCurveTo(30, -14, 30, 0);
+    ctx.quadraticCurveTo(30, 14, 18, 14); ctx.lineTo(-26, 14); ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-10, -14); ctx.lineTo(-2, -26); ctx.lineTo(10, -26); ctx.lineTo(14, -14); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+setInterval(update, 1000 / 30);
+window.gcGiveUp = () => { if (state.running) endGame(); };
+resetGame();
+</script>
+</body>
+</html>

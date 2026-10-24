@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>銀行強盗の人質</title>
+<style>
+  body { margin:0; background:#1a1a2a; color:#eef0fa; font-family:"Hiragino Sans","Yu Gothic",sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:20px; margin:8px 0; }
+  #hud { display:flex; justify-content:space-between; width:640px; max-width:100%; margin-bottom:8px; font-size:14px; gap:10px; flex-wrap:wrap; }
+  #wrap { position:relative; }
+  canvas { background:#3a3a4a; border:3px solid #15151f; border-radius:10px; display:block; }
+  #ctl { display:grid; grid-template-columns:repeat(3,60px); grid-template-rows:repeat(3,48px); gap:6px; margin-top:12px; justify-content:center; }
+  #ctl button { font-size:16px; border-radius:10px; border:none; background:#4a4a6a; color:#fff; cursor:pointer; user-select:none; }
+  #ctl button:active { background:#6a6a8a; }
+  #btnUp { grid-column:2; grid-row:1; } #btnDown { grid-column:2; grid-row:3; }
+  #btnLeft { grid-column:1; grid-row:2; } #btnRight { grid-column:3; grid-row:2; }
+  #seizeBtn { margin-top:10px; font-size:16px; padding:12px 30px; border-radius:14px; border:none; background:#d04a3a; color:#fff; cursor:pointer; font-weight:bold; }
+  #msg { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.85); border-radius:10px; text-align:center; }
+  #msg h2 { font-size:24px; margin-bottom:6px; }
+  #msg p { color:#ddd; margin-bottom:14px; white-space:pre-line; }
+  #msg button { padding:8px 20px; font-size:15px; border-radius:6px; border:none; background:#f0c020; color:#2a2a2a; cursor:pointer; font-weight:bold; }
+  #help { max-width:640px; font-size:13px; color:#c8cce0; margin-top:14px; line-height:1.7; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>🏦 銀行強盗の人質</h1>
+  <div id="hud">
+    <div>制圧: <span id="down">0</span>/3</div>
+    <div>経過: <span id="time">0.0</span>秒</div>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="640" height="420"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle"></h2>
+      <p id="msgText"></p>
+      <button onclick="resetGame()">もう一度</button>
+    </div>
+  </div>
+  <div id="ctl">
+    <button id="btnUp">▲</button>
+    <button id="btnLeft">◀</button>
+    <button id="btnRight">▶</button>
+    <button id="btnDown">▼</button>
+  </div>
+  <button id="seizeBtn">✊ 制圧する</button>
+  <div id="help">
+    矢印キー(↑↓←→)で移動。<b>机や柱の物陰にいれば見つからない</b>(開けた場所は赤い視界に入ると警戒メーターが上がる)。
+    犯人に忍び寄って近づいたら「制圧する」(スペースキーも可)。3人全員を制圧すればクリア、速いほど高得点。見つかりきるとアウト。
+  </div>
+
+<script>
+const W = 640, H = 420;
+const COVERS = [
+  { x: 60, y: 60, w: 70, h: 40 }, { x: 260, y: 40, w: 50, h: 70 }, { x: 460, y: 70, w: 70, h: 40 },
+  { x: 120, y: 200, w: 60, h: 60 }, { x: 320, y: 220, w: 50, h: 50 }, { x: 500, y: 190, w: 60, h: 60 },
+  { x: 60, y: 320, w: 70, h: 40 }, { x: 420, y: 330, w: 70, h: 40 },
+];
+let state = {};
+let input = { up: false, down: false, left: false, right: false };
+
+function makeRobber(x1, y1, x2, y2, speed) {
+  return { x: x1, y: y1, x1, y1, x2, y2, t: Math.random(), dir: 1, speed, alert: 0, down: false, angle: 0 };
+}
+
+function resetGame() {
+  document.getElementById('msg').style.display = 'none';
+  state = {
+    running: true, px: 320, py: 400, elapsed: 0, downCount: 0,
+    robbers: [
+      makeRobber(150, 140, 420, 140, 0.9),
+      makeRobber(540, 120, 540, 320, 0.8),
+      makeRobber(100, 260, 300, 260, 1.0),
+    ],
+    flash: null, flashTimer: 0,
+  };
+  updateHud();
+  render();
+}
+
+function updateHud() {
+  document.getElementById('down').textContent = state.downCount;
+  document.getElementById('time').textContent = (state.elapsed / 30).toFixed(1);
+}
+
+function bindHold(el, onFlag) {
+  const set = v => e => { e.preventDefault(); onFlag(v); };
+  el.addEventListener('pointerdown', set(true));
+  el.addEventListener('pointerup', set(false));
+  el.addEventListener('pointercancel', set(false));
+  el.addEventListener('pointerleave', set(false));
+}
+bindHold(document.getElementById('btnUp'), v => input.up = v);
+bindHold(document.getElementById('btnDown'), v => input.down = v);
+bindHold(document.getElementById('btnLeft'), v => input.left = v);
+bindHold(document.getElementById('btnRight'), v => input.right = v);
+document.getElementById('seizeBtn').onclick = trySeize;
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if (e.key === 'ArrowUp') input.up = true;
+  if (e.key === 'ArrowDown') input.down = true;
+  if (e.key === 'ArrowLeft') input.left = true;
+  if (e.key === 'ArrowRight') input.right = true;
+  if (e.key === ' ') trySeize();
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp') input.up = false;
+  if (e.key === 'ArrowDown') input.down = false;
+  if (e.key === 'ArrowLeft') input.left = false;
+  if (e.key === 'ArrowRight') input.right = false;
+});
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function isHidden(x, y) {
+  return COVERS.some(c => x > c.x - 6 && x < c.x + c.w + 6 && y > c.y - 6 && y < c.y + c.h + 6);
+}
+
+function trySeize() {
+  if (!state.running) return;
+  for (const r of state.robbers) {
+    if (r.down) continue;
+    if (Math.hypot(r.x - state.px, r.y - state.py) < 34 && r.alert < 60) {
+      r.down = true;
+      state.downCount++;
+      state.flash = '✊ 制圧した！'; state.flashTimer = 24;
+      updateHud();
+      if (state.downCount >= state.robbers.length) return clearGame();
+      return;
+    }
+  }
+  state.flash = '近づきすぎ注意！'; state.flashTimer = 16;
+}
+
+function update() {
+  if (!state.running) return;
+  state.elapsed++;
+
+  let dx = 0, dy = 0;
+  if (input.up) dy -= 1.8; if (input.down) dy += 1.8;
+  if (input.left) dx -= 1.8; if (input.right) dx += 1.8;
+  state.px = clamp(state.px + dx, 14, W - 14);
+  state.py = clamp(state.py + dy, 14, H - 14);
+
+  if (state.flashTimer > 0) state.flashTimer--; else state.flash = null;
+
+  const hidden = isHidden(state.px, state.py);
+  for (const r of state.robbers) {
+    if (r.down) continue;
+    r.t += (r.speed / Math.hypot(r.x2 - r.x1, r.y2 - r.y1)) * r.dir * 0.016;
+    if (r.t > 1) { r.t = 1; r.dir = -1; }
+    if (r.t < 0) { r.t = 0; r.dir = 1; }
+    r.x = r.x1 + (r.x2 - r.x1) * r.t;
+    r.y = r.y1 + (r.y2 - r.y1) * r.t;
+    r.angle = Math.atan2((r.y2 - r.y1) * r.dir, (r.x2 - r.x1) * r.dir);
+
+    const toPlayer = Math.atan2(state.py - r.y, state.px - r.x);
+    let diff = Math.abs(toPlayer - r.angle);
+    if (diff > Math.PI) diff = Math.PI * 2 - diff;
+    const dist = Math.hypot(r.x - state.px, r.y - state.py);
+    const seen = !hidden && diff < 0.62 && dist < 150;
+
+    r.alert = seen ? Math.min(100, r.alert + 2.4) : Math.max(0, r.alert - 1.2);
+    if (r.alert >= 100) return endGame();
+  }
+
+  updateHud();
+  render();
+}
+
+function endGame() {
+  state.running = false;
+  document.getElementById('msgTitle').textContent = '🚨 見つかってしまった…';
+  document.getElementById('msgText').textContent = `制圧できた人数: ${state.downCount}/3`;
+  document.getElementById('msg').style.display = 'flex';
+  const score = state.downCount * 200;
+  setTimeout(() => window.GC && GC.submitScore(score), 1200);
+}
+
+function clearGame() {
+  state.running = false;
+  const score = Math.max(100, Math.round(2000 - state.elapsed / 30 * 20));
+  document.getElementById('msgTitle').textContent = '🎉 全員制圧、人質全員無事！';
+  document.getElementById('msgText').textContent = `クリアタイム: ${(state.elapsed / 30).toFixed(1)}秒\nスコア: ${score}`;
+  document.getElementById('msg').style.display = 'flex';
+  setTimeout(() => window.GC && GC.submitScore(score), 1200);
+}
+
+function render() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = '#4a4a5e';
+  for (let x = 0; x < W; x += 40) for (let y = 0; y < H; y += 40) ctx.fillRect(x, y, 38, 38);
+
+  ctx.fillStyle = '#6a5a3a';
+  COVERS.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
+
+  state.robbers.forEach(r => {
+    if (r.down) return;
+    ctx.save();
+    ctx.translate(r.x, r.y);
+    ctx.rotate(r.angle);
+    ctx.fillStyle = r.alert > 60 ? 'rgba(255,60,40,0.4)' : 'rgba(255,220,60,0.25)';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 150, -0.62, 0.62);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  });
+
+  state.robbers.forEach(r => {
+    ctx.font = '28px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(r.down ? '😵' : '🦹', r.x, r.y + 10);
+    if (!r.down) {
+      ctx.fillStyle = '#222'; ctx.fillRect(r.x - 16, r.y - 26, 32, 5);
+      ctx.fillStyle = r.alert > 60 ? '#e03a2a' : '#e0c020';
+      ctx.fillRect(r.x - 16, r.y - 26, 32 * (r.alert / 100), 5);
+    }
+  });
+
+  ctx.font = '30px sans-serif'; ctx.textAlign = 'center';
+  ctx.globalAlpha = isHidden(state.px, state.py) ? 0.55 : 1;
+  ctx.fillText('🙍', state.px, state.py + 10);
+  ctx.globalAlpha = 1;
+
+  if (state.flash) {
+    ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText(state.flash, W / 2, 26);
+  }
+  ctx.textAlign = 'left';
+}
+
+setInterval(update, 1000 / 30);
+window.gcGiveUp = () => { if (state.running) endGame(); };
+resetGame();
+</script>
+</body>
+</html>
